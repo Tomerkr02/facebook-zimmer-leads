@@ -1,30 +1,35 @@
-# Facebook Group Guest Lead Detector MVP
+# Facebook Group Guest Lead Detector
 
-This MVP scans a Facebook group using an existing logged-in browser storage state, scores recent posts with keyword rules, filters out owners/advertisers, and sends only relevant guest leads to Telegram for manual review.
+This project scans one or more Facebook groups using an existing logged-in browser storage state, scores recent posts with keyword rules, filters out owners/advertisers, saves relevant leads into SQLite, sends only relevant guest leads to Telegram for manual review, and provides a small local dashboard for lead management.
 
 It is designed for Royal Water Villa lead monitoring, not outreach automation.
 
 ## What it does
 
 - Uses Playwright with an existing Facebook storage state.
-- Scans recent posts from a Facebook group feed with low-frequency scrolling.
+- Scans recent posts from one or more Facebook group feeds with low-frequency scrolling.
 - Extracts post text, visible author, visible timestamp, and a post URL when Facebook exposes one.
 - Tries to extract from likely post-body containers instead of the full Facebook card when possible.
 - Normalizes Facebook post URLs by removing tracking query parameters and fragments before using them.
 - Cleans extracted text to remove common Facebook UI garbage before matching or alerting.
 - Scores posts with guest-intent rules and rejects owner/advertiser wording.
 - Can optionally run AI scoring after keyword filtering for higher-precision lead review.
-- Stores normalized post keys, normalized URLs, and text hashes in SQLite to avoid duplicate alerts.
+- Stores normalized post keys, normalized URLs, and text hashes in SQLite to avoid duplicate alerts across all groups globally.
+- Stores relevant leads in a real `leads` table with status, notes, AI reason, and suggested reply fields.
+- Includes a local Flask dashboard for reviewing and managing leads manually.
 - Sends only relevant leads with score `>= 5` to Telegram.
+- Continues scanning remaining groups even if one group fails.
 
 ## Project files
 
 - `scraper.py`: main Playwright scraper and orchestration flow
 - `matcher.py`: keyword rules, exclusions, and relevance scoring
 - `telegram.py`: Telegram message formatting and delivery
-- `storage.py`: SQLite dedupe store
+- `storage.py`: SQLite dedupe store and real leads database helpers
+- `reply_suggestions.py`: Hebrew reply suggestion generation with AI/template fallback
 - `config.py`: environment-driven settings and logging
 - `create_facebook_state.py`: helper script to save a logged-in Facebook session state
+- `dashboard.py`: local Flask dashboard
 
 ## Setup
 
@@ -49,6 +54,8 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    Copy-Item .env.example .env
    ```
 
+   - Keep `.env` out of git. It contains secrets such as Telegram credentials and optional OpenAI API keys.
+
 4. Create a Facebook storage state after manual login:
 
    - Run the helper script:
@@ -62,9 +69,20 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    - After the login is complete, return to the terminal and press `Enter`.
    - The script will save the session state to `facebook_state.json`.
    - Set `FACEBOOK_STORAGE_STATE_PATH` in `.env` to point to that file if needed.
-   - Do not place credentials in code or `.env`.
+   - Do not place credentials in code.
+   - Never commit `facebook_state.json`. It contains authenticated browser session data and can expose Facebook account access.
 
 5. Add your Telegram bot token and chat ID to `.env`.
+
+   - Set `FACEBOOK_GROUP_URLS` as a comma-separated list when you want to scan multiple groups in one run.
+   - Example:
+
+   ```env
+   FACEBOOK_GROUP_URLS=https://www.facebook.com/groups/123,https://www.facebook.com/groups/456
+   ```
+
+   - Optional: set `GROUP_SCAN_LIMIT` to scan only the first N configured groups. Use `0` to scan all configured groups.
+   - Telegram is only used for alerts. The system does not automatically message Facebook users.
 
 6. Optional: enable AI scoring:
 
@@ -79,7 +97,38 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    python scraper.py
    ```
 
-8. Optional: schedule it with Windows Task Scheduler at a low frequency.
+8. Run the local dashboard:
+
+   ```powershell
+   python dashboard.py
+   ```
+
+   Then open:
+
+   ```text
+   http://127.0.0.1:5000
+   ```
+
+   Do not expose this dashboard publicly.
+
+9. Optional: schedule the scraper with Windows Task Scheduler at a low frequency.
+
+## Lead management
+
+- Relevant leads are saved into the SQLite `leads` table.
+- Supported lead statuses:
+  - `new`
+  - `contacted`
+  - `not_relevant`
+  - `closed`
+  - `archived`
+- The dashboard supports:
+  - newest-first lead list
+  - filtering by status
+  - full lead detail view
+  - editing notes
+  - updating lead status
+  - copying a suggested manual reply
 
 ## Scoring rules
 
@@ -97,6 +146,8 @@ Only leads with score `>= 5` are sent.
 - Keyword scoring remains the first filter and is always kept.
 - AI scoring is optional and only runs when `ENABLE_AI_SCORING=true`, `OPENAI_API_KEY` is present, and the cleaned post text is a reasonable length.
 - If AI scoring fails for any reason, or cannot run because the API key is missing, the scraper falls back to keyword scoring only.
+- If AI is enabled, the AI can generate both `reason_he` and `suggested_reply_he`.
+- If AI is disabled or fails, the system falls back to template-based Hebrew reply suggestions.
 - When AI is enabled and returns a valid result, the lead is sent to Telegram only if:
   - the keyword score passed the normal threshold, and
   - `is_relevant=true`, and
@@ -125,6 +176,7 @@ Supported AI categories:
 - The normalized URL is used for duplicate detection, logs, Telegram alerts, and storage keys.
 - If no usable post URL is extracted, the scraper falls back to a stable text hash for deduplication.
 - This keeps logs cleaner and prevents the same post from generating duplicate alerts just because Facebook changed its tracking suffixes.
+- Deduplication is global across all configured groups in the same SQLite database.
 
 ## Text cleaning behavior
 
@@ -178,6 +230,9 @@ CLEAN:
 ```text
 🔥 ליד חדש לצימר
 
+Lead ID: 123
+סטטוס: new
+
 רמת התאמה: גבוהה / בינונית
 ניקוד מילים: X
 ניקוד AI: X/10
@@ -198,9 +253,34 @@ CLEAN:
 כותב:
 [author if available]
 
+קבוצה:
+[group name if available]
+
+קישור קבוצה:
+[group URL]
+
 קישור:
 [post URL]
 ```
+
+## Multi-group scanning
+
+- Groups are scanned one by one in a single run.
+- Each group is isolated so a failure in one group does not stop the rest.
+- The scraper adds a random cooldown between groups to stay gentle on Facebook.
+- Logs include per-group progress and a final summary in this shape:
+
+```text
+SCAN SUMMARY
+Group A -> scanned=X matched=Y alerts=Z
+Group B -> scanned=X matched=Y alerts=Z
+```
+
+## Dashboard safety
+
+- The dashboard is local-only and currently has no authentication.
+- Do not expose `http://127.0.0.1:5000` publicly.
+- The system only alerts and suggests replies. It does not automatically message users.
 
 ## Operational notes
 
@@ -209,3 +289,11 @@ CLEAN:
 - Do not spam Facebook or send direct messages automatically.
 - Review every Telegram alert manually before taking action.
 - Facebook DOM structure changes often, so selector tuning may be needed over time.
+
+## Secrets and session safety
+
+- `.env` must never be committed because it can contain Telegram bot credentials, chat IDs, and optional OpenAI API keys.
+- `facebook_state.json` must never be committed because it contains a saved logged-in Facebook browser session.
+- `.db` and `.sqlite` files must never be committed because they contain collected leads, statuses, notes, and local operational state.
+- `.venv` must never be committed because it is generated machine-specific environment data.
+- `.env.example` is safe to keep tracked because it documents variable names without storing real secrets.

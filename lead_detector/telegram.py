@@ -10,39 +10,52 @@ logger = logging.getLogger(__name__)
 
 
 def build_alert_message(
+    lead_id: int,
+    status: str,
     match_result: MatchResult,
     post_text: str,
     author_name: str | None,
     post_url: str | None,
+    group_name: str | None,
+    group_url: str,
+    ai_reason_he: str | None,
+    suggested_reply_he: str | None,
+    ai_category: str | None,
+    ai_score: int | None,
     ai_result: AIScoreResult | None = None,
 ) -> str:
     keywords_text = ", ".join(match_result.matched_keywords) or "-"
     content = post_text.strip() if post_text.strip() else "-"
     author = author_name or "לא זמין"
     url = post_url or "לא זמין"
-    ai_details = ""
-
-    if ai_result:
-        ai_details = (
-            f"ניקוד AI: {ai_result.score}/10\n"
-            f"קטגוריה: {ai_result.category}\n\n"
-            "סיבת התאמה:\n"
-            f"{ai_result.reason_he}\n\n"
-            "הצעת תגובה:\n"
-            f"{ai_result.suggested_reply_he}\n\n"
-        )
+    group = group_name or "לא זמין"
+    ai_score_text = f"{ai_score}/10" if ai_score is not None else "לא זמין"
+    category_text = ai_category or (ai_result.category if ai_result else "-")
+    reason_text = ai_reason_he or (ai_result.reason_he if ai_result else "ליד שעבר סינון מילות מפתח.")
+    reply_text = suggested_reply_he or (ai_result.suggested_reply_he if ai_result else "לא זמין")
 
     return (
         "🔥 ליד חדש לצימר\n\n"
+        f"Lead ID: {lead_id}\n"
+        f"סטטוס: {status}\n\n"
         f"רמת התאמה: {score_label(match_result.score)}\n"
         f"ניקוד מילים: {match_result.score}\n"
-        f"{ai_details}"
+        f"ניקוד AI: {ai_score_text}\n"
+        f"קטגוריה: {category_text}\n\n"
+        "סיבת התאמה:\n"
+        f"{reason_text}\n\n"
+        "הצעת תגובה:\n"
+        f"{reply_text}\n\n"
         "התאמות:\n"
         f"{keywords_text}\n\n"
         "תוכן:\n"
         f"{content}\n\n"
         "כותב:\n"
         f"{author}\n\n"
+        "קבוצה:\n"
+        f"{group}\n\n"
+        "קישור קבוצה:\n"
+        f"{group_url}\n\n"
         "קישור:\n"
         f"{url}"
     )

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Lead Detector{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1 class="brand">Royal Water Villa Leads</h1>
+        <p class="subtitle">ממשק מקומי לבדיקה ידנית וניהול פניות</p>
+      </div>
+      <nav class="topnav">
+        <a href="{{ url_for('leads_page') }}">כל הלידים</a>
+      </nav>
+    </header>
+    <main class="page">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

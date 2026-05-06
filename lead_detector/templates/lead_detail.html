@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Lead #{{ lead.id }}{% endblock %}
+{% block content %}
+<section class="detail-layout">
+  <article class="panel detail-main">
+    <div class="lead-card-head">
+      <div>
+        <div class="lead-meta">Lead #{{ lead.id }}</div>
+        <h2>{{ lead.group_name or "קבוצה לא מזוהה" }}</h2>
+      </div>
+      <span class="status status-{{ lead.status }}">{{ lead.status }}</span>
+    </div>
+
+    <div class="detail-grid">
+      <div><strong>נוצר:</strong> {{ lead.created_at }}</div>
+      <div><strong>עודכן:</strong> {{ lead.updated_at }}</div>
+      <div><strong>כותב:</strong> {{ lead.author or "לא זמין" }}</div>
+      <div><strong>מקור:</strong> {{ lead.source }}</div>
+      <div><strong>ניקוד מילים:</strong> {{ lead.keyword_score }}</div>
+      <div><strong>ניקוד AI:</strong> {{ lead.ai_score if lead.ai_score is not none else "-" }}</div>
+      <div><strong>קטגוריה:</strong> {{ lead.ai_category or "-" }}</div>
+      <div><strong>טלגרם:</strong> {{ "כן" if lead.sent_to_telegram else "לא" }}</div>
+    </div>
+
+    <section class="content-block">
+      <h3>טקסט נקי</h3>
+      <div class="text-box">{{ lead.cleaned_text or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>טקסט מקורי</h3>
+      <div class="text-box muted">{{ lead.post_text or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>מילות מפתח</h3>
+      <div class="keyword-list">
+        {% for keyword in lead.matched_keywords_list %}
+        <span class="keyword">{{ keyword }}</span>
+        {% else %}
+        <span class="muted">אין</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-block">
+      <h3>סיבת התאמה</h3>
+      <div class="text-box">{{ lead.ai_reason_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <div class="copy-row">
+        <h3>הצעת תגובה</h3>
+        <button type="button" class="copy-button" onclick="copyReply()">העתקה</button>
+      </div>
+      <div class="text-box" id="replyText">{{ lead.suggested_reply_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>קישורים</h3>
+      <div class="link-row">
+        {% if lead.group_url %}
+        <a class="button-link" href="{{ lead.group_url }}" target="_blank" rel="noopener">קבוצה</a>
+        {% endif %}
+        {% if lead.post_url %}
+        <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פוסט</a>
+        {% endif %}
+      </div>
+    </section>
+  </article>
+
+  <aside class="panel detail-side">
+    <section class="content-block">
+      <h3>עדכון סטטוס</h3>
+      <div class="status-actions">
+        {% for status in statuses %}
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="{{ status }}">
+          <button type="submit">{{ status }}</button>
+        </form>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-block">
+      <h3>הערות</h3>
+      <form method="post" action="{{ url_for('lead_notes_update', lead_id=lead.id) }}">
+        <textarea name="notes" rows="10" placeholder="הערות פנימיות...">{{ lead.notes or "" }}</textarea>
+        <button type="submit">שמירת הערות</button>
+      </form>
+    </section>
+  </aside>
+</section>
+
+<script>
+function copyReply() {
+  const reply = document.getElementById("replyText").innerText;
+  navigator.clipboard.writeText(reply);
+}
+</script>
+{% endblock %}

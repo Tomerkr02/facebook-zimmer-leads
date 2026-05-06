@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}לידים{% endblock %}
+{% block content %}
+<section class="panel">
+  <form class="filters" method="get" action="{{ url_for('leads_page') }}">
+    <label>
+      סטטוס
+      <select name="status">
+        <option value="" {% if not selected_status %}selected{% endif %}>הכל</option>
+        {% for status in statuses %}
+        <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      כמות
+      <input type="number" name="limit" value="{{ limit }}" min="1" max="500">
+    </label>
+    <button type="submit">סינון</button>
+  </form>
+</section>
+
+<section class="lead-grid">
+  {% for lead in leads %}
+  <article class="lead-card">
+    <div class="lead-card-head">
+      <div>
+        <div class="lead-meta">Lead #{{ lead.id }}</div>
+        <h2><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h2>
+      </div>
+      <span class="status status-{{ lead.status }}">{{ lead.status }}</span>
+    </div>
+    <div class="score-row">
+      <span>מילים: {{ lead.keyword_score }}</span>
+      <span>AI: {{ lead.ai_score if lead.ai_score is not none else "-" }}</span>
+      <span>קטגוריה: {{ lead.ai_category or "-" }}</span>
+    </div>
+    <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:260] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 260 %}...{% endif %}</p>
+    <div class="lead-info">
+      <span>נוצר: {{ lead.created_at }}</span>
+      <span>כותב: {{ lead.author or "לא זמין" }}</span>
+    </div>
+    <div class="lead-info">
+      <span>קבוצה: <a href="{{ lead.group_url }}" target="_blank" rel="noopener">מעבר לקבוצה</a></span>
+      {% if lead.post_url %}
+      <span><a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פוסט</a></span>
+      {% endif %}
+    </div>
+    <div class="reply-preview">
+      <strong>הצעת תגובה:</strong>
+      <p>{{ (lead.suggested_reply_he or "אין הצעה")[:180] }}{% if (lead.suggested_reply_he or "")|length > 180 %}...{% endif %}</p>
+    </div>
+  </article>
+  {% else %}
+  <section class="empty-state">
+    <p>אין לידים להצגה.</p>
+  </section>
+  {% endfor %}
+</section>
+{% endblock %}
