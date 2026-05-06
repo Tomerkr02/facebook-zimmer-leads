@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+facebook_state.json
+*.db
+*.sqlite
+logs/
+temp/
+playwright-report/
+test-results/
