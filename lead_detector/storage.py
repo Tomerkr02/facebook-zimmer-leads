@@ -355,6 +355,28 @@ class LeadStorage:
             row = connection.execute("SELECT COUNT(*) AS count FROM leads").fetchone()
         return int(row["count"]) if row else 0
 
+    def count_active_leads(
+        self,
+        *,
+        include_archived: bool = False,
+        include_rejected: bool = False,
+        include_owner_ads: bool = False,
+    ) -> int:
+        filters: list[str] = []
+        if not include_archived:
+            filters.append("COALESCE(status, 'new') != 'archived'")
+        if not include_rejected:
+            filters.append("COALESCE(status, 'new') != 'not_relevant'")
+            filters.append("COALESCE(heat_level, 'cold') != 'reject'")
+        if not include_owner_ads:
+            filters.append("COALESCE(owner_advertisement, 0) = 0")
+        query = "SELECT COUNT(*) AS count FROM leads"
+        if filters:
+            query += " WHERE " + " AND ".join(filters)
+        with self._connect() as connection:
+            row = connection.execute(query).fetchone()
+        return int(row["count"]) if row else 0
+
     def count_lead_events(self) -> int:
         with self._connect() as connection:
             row = connection.execute("SELECT COUNT(*) AS count FROM lead_events").fetchone()
@@ -1052,7 +1074,7 @@ class LeadStorage:
         include_rejected: bool = False,
         include_owner_ads: bool = False,
         search: str | None = None,
-        sort_by: str = "priority",
+        sort_by: str = "newest",
     ) -> list[dict[str, Any]]:
         sort_mapping = {
             "priority": """
@@ -1130,8 +1152,6 @@ class LeadStorage:
             filters.append("COALESCE(heat_level, 'cold') != 'reject'")
         if not include_owner_ads and not owner_ads_only:
             filters.append("COALESCE(owner_advertisement, 0) = 0")
-        if not include_rejected and not heat_level:
-            filters.append("COALESCE(heat_level, 'cold') != 'cold'")
         if religious_only:
             filters.append("religious_signal = 1")
         if romantic_only:
@@ -1157,6 +1177,83 @@ class LeadStorage:
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_dict(row) for row in rows]
+
+    def count_filtered_leads(
+        self,
+        **filters: Any,
+    ) -> int:
+        status = filters.get("status")
+        heat_level = filters.get("heat_level")
+        guest_type = filters.get("guest_type")
+        urgency = filters.get("urgency")
+        requested_area = filters.get("requested_area")
+        ai_category = filters.get("ai_category")
+        lead_type = filters.get("lead_type")
+        religious_only = bool(filters.get("religious_only"))
+        romantic_only = bool(filters.get("romantic_only"))
+        family_only = bool(filters.get("family_only"))
+        owner_ads_only = bool(filters.get("owner_ads_only"))
+        rejected_only = bool(filters.get("rejected_only"))
+        budget_sensitive_only = bool(filters.get("budget_sensitive_only"))
+        include_archived = bool(filters.get("include_archived"))
+        include_rejected = bool(filters.get("include_rejected"))
+        include_owner_ads = bool(filters.get("include_owner_ads"))
+        search = filters.get("search")
+
+        query = "SELECT COUNT(*) AS count FROM leads"
+        params: list[Any] = []
+        clauses: list[str] = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if heat_level:
+            clauses.append("heat_level = ?")
+            params.append(heat_level)
+        if guest_type:
+            clauses.append("guest_type = ?")
+            params.append(guest_type)
+        if urgency:
+            clauses.append("urgency = ?")
+            params.append(urgency)
+        if requested_area:
+            clauses.append("requested_area = ?")
+            params.append(requested_area)
+        if ai_category:
+            clauses.append("ai_category = ?")
+            params.append(ai_category)
+        if lead_type:
+            clauses.append("lead_type = ?")
+            params.append(lead_type)
+        if not include_archived and not status:
+            clauses.append("COALESCE(status, 'new') != 'archived'")
+        if not include_rejected and not rejected_only and not status:
+            clauses.append("COALESCE(status, 'new') != 'not_relevant'")
+            clauses.append("COALESCE(heat_level, 'cold') != 'reject'")
+        if not include_owner_ads and not owner_ads_only:
+            clauses.append("COALESCE(owner_advertisement, 0) = 0")
+        if religious_only:
+            clauses.append("religious_signal = 1")
+        if romantic_only:
+            clauses.append("romantic_signal = 1")
+        if family_only:
+            clauses.append("family_signal = 1")
+        if owner_ads_only:
+            clauses.append("owner_advertisement = 1")
+        if rejected_only:
+            clauses.append("heat_level = 'reject'")
+        if budget_sensitive_only:
+            clauses.append("budget_sensitive = 1")
+        if search:
+            clauses.append(
+                "(COALESCE(cleaned_text, '') LIKE ? OR COALESCE(post_text, '') LIKE ? OR COALESCE(group_name, '') LIKE ? OR COALESCE(author, '') LIKE ?)"
+            )
+            like_value = f"%{str(search).strip()}%"
+            params.extend([like_value, like_value, like_value, like_value])
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        with self._connect() as connection:
+            row = connection.execute(query, params).fetchone()
+        return int(row["count"]) if row else 0
 
     def summary_stats(
         self,

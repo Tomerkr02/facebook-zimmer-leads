@@ -311,7 +311,7 @@ def _filters_from_request() -> dict[str, str | int]:
         "include_archived": "1" if request.args.get("include_archived") else "",
         "include_rejected": "1" if request.args.get("include_rejected") else "",
         "search": (request.args.get("search") or "").strip(),
-        "sort": (request.args.get("sort") or "priority").strip(),
+        "sort": (request.args.get("sort") or "newest").strip(),
         "limit": limit,
     }
 
@@ -396,6 +396,35 @@ def home():
 @app.route("/leads")
 def leads_page():
     filters = _filters_from_request()
+    total_before_filters = storage.count_active_leads(
+        include_archived=bool(filters["include_archived"]),
+        include_rejected=bool(filters["include_rejected"]),
+        include_owner_ads=bool(filters["owner_ads_only"]),
+    )
+    filtered_count = storage.count_filtered_leads(
+        status=filters["status"] or None,
+        heat_level=filters["heat_level"] or None,
+        guest_type=filters["guest_type"] or None,
+        urgency=filters["urgency"] or None,
+        requested_area=filters["requested_area"] or None,
+        ai_category=filters["ai_category"] or None,
+        lead_type=filters["lead_type"] or None,
+        religious_only=bool(filters["religious_only"]),
+        romantic_only=bool(filters["romantic_only"]),
+        family_only=bool(filters["family_only"]),
+        owner_ads_only=bool(filters["owner_ads_only"]),
+        rejected_only=bool(filters["rejected_only"]),
+        budget_sensitive_only=bool(filters["budget_sensitive_only"]),
+        include_archived=bool(filters["include_archived"]),
+        include_rejected=bool(filters["include_rejected"]),
+        search=filters["search"] or None,
+    )
+    app.logger.info(
+        "LEADS_QUERY | total_before_filters=%s | total_after_filters=%s | active_filters=%s",
+        total_before_filters,
+        filtered_count,
+        {key: value for key, value in filters.items() if value not in {"", None, 0}},
+    )
     leads = _decorate_leads(storage.list_leads(
         status=filters["status"] or None,
         limit=int(filters["limit"]),
@@ -414,9 +443,18 @@ def leads_page():
         include_archived=bool(filters["include_archived"]),
         include_rejected=bool(filters["include_rejected"]),
         search=filters["search"] or None,
-        sort_by=str(filters["sort"] or "priority"),
+        sort_by=str(filters["sort"] or "newest"),
     ))
-    return render_template("leads.html", leads=leads, filters=filters, **_dashboard_context())
+    filters_hide_results = filtered_count == 0 and total_before_filters > 0
+    return render_template(
+        "leads.html",
+        leads=leads,
+        filters=filters,
+        total_before_filters=total_before_filters,
+        filtered_count=filtered_count,
+        filters_hide_results=filters_hide_results,
+        **_dashboard_context(),
+    )
 
 
 @app.route("/archived")
@@ -424,8 +462,9 @@ def archived_page():
     filters = _filters_from_request()
     filters["include_archived"] = "1"
     filters["status"] = "archived"
-    leads = _decorate_leads(storage.list_leads(status="archived", limit=int(filters["limit"]), include_archived=True, sort_by=str(filters["sort"] or "priority")))
-    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", **_dashboard_context())
+    filtered_count = storage.count_filtered_leads(status="archived", include_archived=True)
+    leads = _decorate_leads(storage.list_leads(status="archived", limit=int(filters["limit"]), include_archived=True, sort_by=str(filters["sort"] or "newest")))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", total_before_filters=filtered_count, filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
 
 
 @app.route("/rejected")
@@ -433,8 +472,9 @@ def rejected_page():
     filters = _filters_from_request()
     filters["include_rejected"] = "1"
     filters["rejected_only"] = "1"
-    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), rejected_only=True, include_rejected=True, include_owner_ads=True, sort_by=str(filters["sort"] or "priority")))
-    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", **_dashboard_context())
+    filtered_count = storage.count_filtered_leads(rejected_only=True, include_rejected=True, include_owner_ads=True)
+    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), rejected_only=True, include_rejected=True, include_owner_ads=True, sort_by=str(filters["sort"] or "newest")))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", total_before_filters=filtered_count, filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
 
 
 @app.route("/scans")

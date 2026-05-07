@@ -181,7 +181,7 @@
     </label>
     <div class="filter-actions">
       <button type="submit">הפעל סינון</button>
-      <a class="button-link secondary" href="{{ url_for('leads_page') }}">ניקוי</a>
+      <a class="button-link secondary" href="{{ url_for('leads_page') }}">נקה פילטרים</a>
     </div>
   </form>
 </section>
@@ -195,6 +195,8 @@
     <div class="live-badges">
       <span class="live-pill">חמים: {{ stats.hot_leads }}</span>
       <span class="live-pill">חדשים: {{ stats.new_leads }}</span>
+      <span class="live-pill">תואמים לפילטרים: {{ filtered_count }}</span>
+      <span class="live-pill">סה"כ לפני פילטרים: {{ total_before_filters }}</span>
     </div>
   </div>
 
@@ -341,8 +343,13 @@
   </div>
   {% else %}
   <section class="empty-state">
+    {% if filters_hide_results %}
+    <h3>יש לידים במערכת, אבל הפילטרים הנוכחיים מסתירים אותם</h3>
+    <p>נסה ללחוץ על <strong>נקה פילטרים</strong> או להרחיב את הסינון כדי לראות את כל הלידים הפעילים.</p>
+    {% else %}
     <h3>עדיין אין לידים</h3>
     <p>תריץ <code>python scraper.py --rescan</code> כדי להתחיל לסרוק קבוצות ולאכלס את מרכז הפיקוד.</p>
+    {% endif %}
   </section>
   {% endif %}
 </section>
