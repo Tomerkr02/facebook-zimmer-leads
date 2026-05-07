@@ -22,6 +22,12 @@ def build_alert_message(
     suggested_reply_he: str | None,
     ai_category: str | None,
     ai_score: int | None,
+    heat_level: str | None,
+    fit_score: int | None,
+    guest_type: str | None,
+    urgency: str | None,
+    requested_area: str | None,
+    pool_intent: str | None,
     ai_result: AIScoreResult | None = None,
 ) -> str:
     keywords_text = ", ".join(match_result.matched_keywords) or "-"
@@ -38,6 +44,12 @@ def build_alert_message(
         "🔥 ליד חדש לצימר\n\n"
         f"Lead ID: {lead_id}\n"
         f"סטטוס: {status}\n\n"
+        f"רמת חום: {heat_level or '-'}\n"
+        f"ציון התאמה: {fit_score if fit_score is not None else '-'}\n"
+        f"סוג אורח: {guest_type or '-'}\n"
+        f"דחיפות: {urgency or '-'}\n"
+        f"אזור: {requested_area or '-'}\n"
+        f"כוונת בריכה: {pool_intent or '-'}\n\n"
         f"רמת התאמה: {score_label(match_result.score)}\n"
         f"ניקוד מילים: {match_result.score}\n"
         f"ניקוד AI: {ai_score_text}\n"

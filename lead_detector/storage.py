@@ -9,6 +9,7 @@ from typing import Any
 ALLOWED_LEAD_STATUSES = {
     "new",
     "contacted",
+    "waiting_reply",
     "not_relevant",
     "closed",
     "archived",
@@ -117,6 +118,19 @@ class LeadStorage:
             "sent_to_telegram": "INTEGER DEFAULT 0",
             "notes": "TEXT",
             "text_hash": "TEXT",
+            "guest_type": "TEXT",
+            "urgency": "TEXT",
+            "requested_area": "TEXT",
+            "pool_intent": "TEXT",
+            "privacy_intent": "TEXT",
+            "bad_fit_reasons": "TEXT",
+            "fit_score": "INTEGER",
+            "heat_level": "TEXT",
+            "short_reason_he": "TEXT",
+            "recommended_action": "TEXT",
+            "suggested_first_reply_he": "TEXT",
+            "suggested_followup_he": "TEXT",
+            "suggested_price_question_he": "TEXT",
         }
         existing_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(leads)").fetchall()
@@ -180,6 +194,42 @@ class LeadStorage:
                 (post_key, post_url, text_hash, author_name),
             )
 
+    def count_leads(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute("SELECT COUNT(*) AS count FROM leads").fetchone()
+        return int(row["count"]) if row else 0
+
+    def latest_leads(self, limit: int = 5) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM leads
+                ORDER BY datetime(created_at) DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def list_table_names(self) -> list[str]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+                ORDER BY name
+                """
+            ).fetchall()
+        return [str(row["name"]) for row in rows]
+
+    @staticmethod
+    def serialize_string_list(items: list[str] | None) -> str | None:
+        if not items:
+            return None
+        return json.dumps(items, ensure_ascii=False)
+
     def save_lead(
         self,
         *,
@@ -196,16 +246,30 @@ class LeadStorage:
         ai_category: str | None,
         ai_reason_he: str | None,
         suggested_reply_he: str | None,
+        guest_type: str | None = None,
+        urgency: str | None = None,
+        requested_area: str | None = None,
+        pool_intent: str | None = None,
+        privacy_intent: str | None = None,
+        bad_fit_reasons: list[str] | None = None,
+        fit_score: int | None = None,
+        heat_level: str | None = None,
+        short_reason_he: str | None = None,
+        recommended_action: str | None = None,
+        suggested_first_reply_he: str | None = None,
+        suggested_followup_he: str | None = None,
+        suggested_price_question_he: str | None = None,
         status: str = "new",
         sent_to_telegram: int = 0,
         notes: str | None = None,
-    ) -> int:
+    ) -> tuple[int, str]:
         if status not in ALLOWED_LEAD_STATUSES:
             raise ValueError(f"Unsupported lead status: {status}")
 
         now = utc_now_iso()
         text_hash = self.build_text_hash(cleaned_text or post_text)
         keywords_serialized = self.serialize_keywords(matched_keywords)
+        bad_fit_serialized = self.serialize_string_list(bad_fit_reasons)
 
         with self._connect() as connection:
             existing = connection.execute(
@@ -239,6 +303,19 @@ class LeadStorage:
                         ai_category = ?,
                         ai_reason_he = ?,
                         suggested_reply_he = COALESCE(?, suggested_reply_he),
+                        guest_type = COALESCE(?, guest_type),
+                        urgency = COALESCE(?, urgency),
+                        requested_area = COALESCE(?, requested_area),
+                        pool_intent = COALESCE(?, pool_intent),
+                        privacy_intent = COALESCE(?, privacy_intent),
+                        bad_fit_reasons = COALESCE(?, bad_fit_reasons),
+                        fit_score = COALESCE(?, fit_score),
+                        heat_level = COALESCE(?, heat_level),
+                        short_reason_he = COALESCE(?, short_reason_he),
+                        recommended_action = COALESCE(?, recommended_action),
+                        suggested_first_reply_he = COALESCE(?, suggested_first_reply_he),
+                        suggested_followup_he = COALESCE(?, suggested_followup_he),
+                        suggested_price_question_he = COALESCE(?, suggested_price_question_he),
                         sent_to_telegram = MAX(sent_to_telegram, ?),
                         notes = COALESCE(notes, ?),
                         text_hash = ?
@@ -259,13 +336,26 @@ class LeadStorage:
                         ai_category,
                         ai_reason_he,
                         suggested_reply_he,
+                        guest_type,
+                        urgency,
+                        requested_area,
+                        pool_intent,
+                        privacy_intent,
+                        bad_fit_serialized,
+                        fit_score,
+                        heat_level,
+                        short_reason_he,
+                        recommended_action,
+                        suggested_first_reply_he,
+                        suggested_followup_he,
+                        suggested_price_question_he,
                         sent_to_telegram,
                         notes,
                         text_hash,
                         lead_id,
                     ),
                 )
-                return lead_id
+                return lead_id, "updated"
 
             cursor = connection.execute(
                 """
@@ -285,6 +375,19 @@ class LeadStorage:
                     ai_category,
                     ai_reason_he,
                     suggested_reply_he,
+                    guest_type,
+                    urgency,
+                    requested_area,
+                    pool_intent,
+                    privacy_intent,
+                    bad_fit_reasons,
+                    fit_score,
+                    heat_level,
+                    short_reason_he,
+                    recommended_action,
+                    suggested_first_reply_he,
+                    suggested_followup_he,
+                    suggested_price_question_he,
                     status,
                     sent_to_telegram,
                     notes,
@@ -308,13 +411,26 @@ class LeadStorage:
                     ai_category,
                     ai_reason_he,
                     suggested_reply_he,
+                    guest_type,
+                    urgency,
+                    requested_area,
+                    pool_intent,
+                    privacy_intent,
+                    bad_fit_serialized,
+                    fit_score,
+                    heat_level,
+                    short_reason_he,
+                    recommended_action,
+                    suggested_first_reply_he,
+                    suggested_followup_he,
+                    suggested_price_question_he,
                     status,
                     sent_to_telegram,
                     notes,
                     text_hash,
                 ),
             )
-            return int(cursor.lastrowid)
+            return int(cursor.lastrowid), "created"
 
     def mark_lead_telegram_sent(self, lead_id: int) -> None:
         with self._connect() as connection:
@@ -336,17 +452,53 @@ class LeadStorage:
             ).fetchone()
         return self._row_to_dict(row)
 
-    def list_leads(self, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def list_leads(
+        self,
+        status: str | None = None,
+        limit: int = 100,
+        heat_level: str | None = None,
+        guest_type: str | None = None,
+        urgency: str | None = None,
+    ) -> list[dict[str, Any]]:
         query = "SELECT * FROM leads"
         params: list[Any] = []
+        filters: list[str] = []
         if status:
-            query += " WHERE status = ?"
+            filters.append("status = ?")
             params.append(status)
+        if heat_level:
+            filters.append("heat_level = ?")
+            params.append(heat_level)
+        if guest_type:
+            filters.append("guest_type = ?")
+            params.append(guest_type)
+        if urgency:
+            filters.append("urgency = ?")
+            params.append(urgency)
+        if filters:
+            query += " WHERE " + " AND ".join(filters)
         query += " ORDER BY datetime(created_at) DESC, id DESC LIMIT ?"
         params.append(limit)
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_dict(row) for row in rows]
+
+    def summary_stats(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            total = int(connection.execute("SELECT COUNT(*) AS count FROM leads").fetchone()["count"])
+            hot = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE heat_level = 'hot'").fetchone()["count"])
+            warm = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE heat_level = 'warm'").fetchone()["count"])
+            contacted = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status IN ('contacted', 'waiting_reply')").fetchone()["count"])
+            closed = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'closed'").fetchone()["count"])
+        conversion_rate_placeholder = round((closed / total) * 100, 1) if total else 0.0
+        return {
+            "total_leads": total,
+            "hot_leads": hot,
+            "warm_leads": warm,
+            "contacted": contacted,
+            "closed": closed,
+            "conversion_rate_placeholder": conversion_rate_placeholder,
+        }
 
     def update_lead_status(self, lead_id: int, status: str) -> None:
         if status not in ALLOWED_LEAD_STATUSES:
@@ -377,4 +529,5 @@ class LeadStorage:
             return None
         result = dict(row)
         result["matched_keywords_list"] = self.deserialize_keywords(result.get("matched_keywords"))
+        result["bad_fit_reasons_list"] = self.deserialize_keywords(result.get("bad_fit_reasons"))
         return result

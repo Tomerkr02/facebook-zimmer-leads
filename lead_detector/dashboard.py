@@ -7,6 +7,8 @@ from storage import ALLOWED_LEAD_STATUSES, LeadStorage
 settings = load_settings()
 storage = LeadStorage(settings.database_path)
 app = Flask(__name__)
+app.logger.info("Database path: %s", settings.database_path)
+app.logger.info("Current leads count: %s", storage.count_leads())
 
 
 @app.template_filter("nl2br")
@@ -22,16 +24,43 @@ def home():
 @app.route("/leads")
 def leads_page():
     status = request.args.get("status") or None
+    heat_level = request.args.get("heat_level") or None
+    guest_type = request.args.get("guest_type") or None
+    urgency = request.args.get("urgency") or None
     limit = request.args.get("limit", default=100, type=int)
     limit = max(1, min(limit, 500))
-    leads = storage.list_leads(status=status, limit=limit)
+    leads = storage.list_leads(
+        status=status,
+        limit=limit,
+        heat_level=heat_level,
+        guest_type=guest_type,
+        urgency=urgency,
+    )
     return render_template(
         "leads.html",
         leads=leads,
         selected_status=status or "",
+        selected_heat_level=heat_level or "",
+        selected_guest_type=guest_type or "",
+        selected_urgency=urgency or "",
         statuses=sorted(ALLOWED_LEAD_STATUSES),
+        heat_levels=["hot", "warm", "cold", "reject"],
+        guest_types=["couple", "couple_with_kids", "small_family", "large_group", "unknown"],
+        urgencies=["today", "tomorrow", "weekend", "shabbat", "date_specific", "flexible", "unknown"],
         limit=limit,
+        stats=storage.summary_stats(),
     )
+
+
+@app.route("/debug/db")
+def debug_db():
+    latest = storage.latest_leads(limit=5)
+    return {
+        "database_path": str(settings.database_path),
+        "total_leads": storage.count_leads(),
+        "latest_5_leads": latest,
+        "table_names": storage.list_table_names(),
+    }
 
 
 @app.route("/leads/<int:lead_id>")

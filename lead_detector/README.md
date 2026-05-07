@@ -8,6 +8,7 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 
 - Uses Playwright with an existing Facebook storage state.
 - Scans recent posts from one or more Facebook group feeds with low-frequency scrolling.
+- Can scan deeper into each group feed with configurable scroll depth and per-group post limits.
 - Extracts post text, visible author, visible timestamp, and a post URL when Facebook exposes one.
 - Tries to extract from likely post-body containers instead of the full Facebook card when possible.
 - Normalizes Facebook post URLs by removing tracking query parameters and fragments before using them.
@@ -16,6 +17,7 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - Can optionally run AI scoring after keyword filtering for higher-precision lead review.
 - Stores normalized post keys, normalized URLs, and text hashes in SQLite to avoid duplicate alerts across all groups globally.
 - Stores relevant leads in a real `leads` table with status, notes, AI reason, and suggested reply fields.
+- Adds a lead-intelligence layer with guest type, urgency, area fit, heat level, fit score, and manual reply suggestions.
 - Includes a local Flask dashboard for reviewing and managing leads manually.
 - Sends only relevant leads with score `>= 5` to Telegram.
 - Continues scanning remaining groups even if one group fails.
@@ -27,6 +29,7 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - `telegram.py`: Telegram message formatting and delivery
 - `storage.py`: SQLite dedupe store and real leads database helpers
 - `reply_suggestions.py`: Hebrew reply suggestion generation with AI/template fallback
+- `lead_intelligence.py`: smart lead qualification with AI/rule-based fallback
 - `config.py`: environment-driven settings and logging
 - `create_facebook_state.py`: helper script to save a logged-in Facebook session state
 - `dashboard.py`: local Flask dashboard
@@ -97,6 +100,12 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    python scraper.py
    ```
 
+   To reprocess groups after improving matching rules without trusting the old `seen_posts` table:
+
+   ```powershell
+   python scraper.py --rescan
+   ```
+
 8. Run the local dashboard:
 
    ```powershell
@@ -110,6 +119,11 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    ```
 
    Do not expose this dashboard publicly.
+   For quick database diagnostics, you can also open:
+
+   ```text
+   http://127.0.0.1:5000/debug/db
+   ```
 
 9. Optional: schedule the scraper with Windows Task Scheduler at a low frequency.
 
@@ -119,16 +133,19 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - Supported lead statuses:
   - `new`
   - `contacted`
+  - `waiting_reply`
   - `not_relevant`
   - `closed`
   - `archived`
 - The dashboard supports:
   - newest-first lead list
   - filtering by status
+  - filtering by heat level, guest type, and urgency
+  - summary counters for hot/warm/contacted/closed leads
   - full lead detail view
   - editing notes
   - updating lead status
-  - copying a suggested manual reply
+  - copying a suggested first reply
 
 ## Scoring rules
 
@@ -139,7 +156,7 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - `generic zimmer request` match: `+2`
 - `owner / advertiser wording`: rejected immediately
 
-Only leads with score `>= 5` are sent.
+Default keyword threshold is controlled by `MIN_KEYWORD_SCORE` and currently defaults to `4`.
 
 ## AI scoring
 
@@ -148,6 +165,7 @@ Only leads with score `>= 5` are sent.
 - If AI scoring fails for any reason, or cannot run because the API key is missing, the scraper falls back to keyword scoring only.
 - If AI is enabled, the AI can generate both `reason_he` and `suggested_reply_he`.
 - If AI is disabled or fails, the system falls back to template-based Hebrew reply suggestions.
+- The lead-intelligence layer also uses AI when enabled, and falls back to local rules if AI is disabled or fails.
 - When AI is enabled and returns a valid result, the lead is sent to Telegram only if:
   - the keyword score passed the normal threshold, and
   - `is_relevant=true`, and
@@ -233,6 +251,13 @@ CLEAN:
 Lead ID: 123
 סטטוס: new
 
+רמת חום: hot
+ציון התאמה: 9
+סוג אורח: couple_with_kids
+דחיפות: weekend
+אזור: rehovot_area
+כוונת בריכה: private_pool
+
 רמת התאמה: גבוהה / בינונית
 ניקוד מילים: X
 ניקוד AI: X/10
@@ -268,6 +293,8 @@ Lead ID: 123
 - Groups are scanned one by one in a single run.
 - Each group is isolated so a failure in one group does not stop the rest.
 - The scraper adds a random cooldown between groups to stay gentle on Facebook.
+- `MAX_SCROLLS` defaults to `8`.
+- `POSTS_PER_GROUP_LIMIT` defaults to `80`.
 - Logs include per-group progress and a final summary in this shape:
 
 ```text
@@ -276,11 +303,29 @@ Group A -> scanned=X matched=Y alerts=Z
 Group B -> scanned=X matched=Y alerts=Z
 ```
 
+## Debug matching
+
+- Set `DEBUG_MATCHING=true` to log, for every extracted post:
+  - cleaned text preview
+  - matched positive keywords
+  - matched negative keywords
+  - keyword score
+  - final decision
+- Group logs also include counters for:
+  - total DOM cards found
+  - posts with extracted text
+  - posts rejected by owner keywords
+  - posts rejected by low keyword score
+  - posts passed keyword score
+  - posts saved to leads
+  - duplicates skipped
+
 ## Dashboard safety
 
 - The dashboard is local-only and currently has no authentication.
 - Do not expose `http://127.0.0.1:5000` publicly.
 - The system only alerts and suggests replies. It does not automatically message users.
+- Suggested replies are for manual outreach only.
 
 ## Operational notes
 
@@ -289,6 +334,7 @@ Group B -> scanned=X matched=Y alerts=Z
 - Do not spam Facebook or send direct messages automatically.
 - Review every Telegram alert manually before taking action.
 - Facebook DOM structure changes often, so selector tuning may be needed over time.
+- `python scraper.py --rescan` will ignore the `seen_posts` table for scanning, but still upsert into the same `leads` rows by `post_url` or `text_hash`.
 
 ## Secrets and session safety
 

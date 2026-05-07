@@ -2,6 +2,14 @@
 {% block title %}לידים{% endblock %}
 {% block content %}
 <section class="panel">
+  <div class="stats-grid">
+    <div class="stat-card"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></div>
+    <div class="stat-card"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></div>
+    <div class="stat-card"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
+    <div class="stat-card"><strong>{{ stats.contacted }}</strong><span>נוצר קשר</span></div>
+    <div class="stat-card"><strong>{{ stats.closed }}</strong><span>נסגרו</span></div>
+    <div class="stat-card"><strong>{{ stats.conversion_rate_placeholder }}%</strong><span>המרה משוערת</span></div>
+  </div>
   <form class="filters" method="get" action="{{ url_for('leads_page') }}">
     <label>
       סטטוס
@@ -9,6 +17,33 @@
         <option value="" {% if not selected_status %}selected{% endif %}>הכל</option>
         {% for status in statuses %}
         <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      חום
+      <select name="heat_level">
+        <option value="" {% if not selected_heat_level %}selected{% endif %}>הכל</option>
+        {% for item in heat_levels %}
+        <option value="{{ item }}" {% if selected_heat_level == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      סוג אורח
+      <select name="guest_type">
+        <option value="" {% if not selected_guest_type %}selected{% endif %}>הכל</option>
+        {% for item in guest_types %}
+        <option value="{{ item }}" {% if selected_guest_type == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      דחיפות
+      <select name="urgency">
+        <option value="" {% if not selected_urgency %}selected{% endif %}>הכל</option>
+        {% for item in urgencies %}
+        <option value="{{ item }}" {% if selected_urgency == item %}selected{% endif %}>{{ item }}</option>
         {% endfor %}
       </select>
     </label>
@@ -28,12 +63,21 @@
         <div class="lead-meta">Lead #{{ lead.id }}</div>
         <h2><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h2>
       </div>
-      <span class="status status-{{ lead.status }}">{{ lead.status }}</span>
+      <div class="badge-stack">
+        <span class="heat heat-{{ lead.heat_level or 'cold' }}">
+          {% if lead.heat_level == 'hot' %}🔥{% elif lead.heat_level == 'warm' %}🟡{% elif lead.heat_level == 'reject' %}⛔{% else %}❄️{% endif %}
+          {{ lead.heat_level or "cold" }}
+        </span>
+        <span class="status status-{{ lead.status }}">{{ lead.status }}</span>
+      </div>
     </div>
     <div class="score-row">
       <span>מילים: {{ lead.keyword_score }}</span>
       <span>AI: {{ lead.ai_score if lead.ai_score is not none else "-" }}</span>
-      <span>קטגוריה: {{ lead.ai_category or "-" }}</span>
+      <span>ציון התאמה: {{ lead.fit_score if lead.fit_score is not none else "-" }}</span>
+      <span>סוג: {{ lead.guest_type or "-" }}</span>
+      <span>דחיפות: {{ lead.urgency or "-" }}</span>
+      <span>אזור: {{ lead.requested_area or "-" }}</span>
     </div>
     <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:260] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 260 %}...{% endif %}</p>
     <div class="lead-info">
@@ -47,8 +91,8 @@
       {% endif %}
     </div>
     <div class="reply-preview">
-      <strong>הצעת תגובה:</strong>
-      <p>{{ (lead.suggested_reply_he or "אין הצעה")[:180] }}{% if (lead.suggested_reply_he or "")|length > 180 %}...{% endif %}</p>
+      <strong>תגובה ראשונה:</strong>
+      <p>{{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "אין הצעה")[:180] }}{% if (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|length > 180 %}...{% endif %}</p>
     </div>
   </article>
   {% else %}

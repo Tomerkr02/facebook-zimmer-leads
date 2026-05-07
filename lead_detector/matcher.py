@@ -15,6 +15,17 @@ GENERIC_REQUEST_KEYWORDS = [
     "צריכים צימר",
     "מחפש מקום",
     "מחפשת מקום",
+    "מחפשים מקום",
+    "מחפשת מקום ללילה",
+    "מקום לזוג",
+    "מקום עם בריכה",
+    "צימר פנוי",
+    "יש פנוי",
+    "פנוי היום",
+    "פנוי מחר",
+    "פנוי לסופש",
+    "לסופש הקרוב",
+    "לזוג",
     "צימר לזוג",
     "צימר זוגי",
     "צימר רומנטי",
@@ -27,6 +38,7 @@ PRIVATE_POOL_KEYWORDS = [
     "צימר לזוג עם בריכה",
     "וילה עם בריכה",
     "בריכה רק לנו",
+    "מקום עם בריכה",
 ]
 
 COUPLE_OR_FAMILY_KEYWORDS = [
@@ -40,6 +52,9 @@ COUPLE_OR_FAMILY_KEYWORDS = [
     "זוג + 2",
     "זוג עם ילד",
     "זוג עם שני ילדים",
+    "זוג + ילד",
+    "משפחה קטנה",
+    "לזוג",
 ]
 
 AVAILABILITY_KEYWORDS = [
@@ -53,6 +68,11 @@ AVAILABILITY_KEYWORDS = [
     "היום בערב",
     "השבת הקרובה",
     "לסופש הקרוב",
+    "פנוי היום",
+    "פנוי מחר",
+    "פנוי לסופש",
+    "יש פנוי",
+    "צימר פנוי",
 ]
 
 AREA_KEYWORDS = [
@@ -66,6 +86,13 @@ AREA_KEYWORDS = [
     "ירושלים",
     "מרכז הארץ",
     "שפלה",
+    "אזור המרכז",
+    "קריית עקרון",
+    "נס ציונה",
+    "גדרה",
+    "ראשון לציון",
+    "פרטיות",
+    "שקט",
 ]
 
 EXCLUDE_KEYWORDS = [
@@ -85,6 +112,17 @@ EXCLUDE_KEYWORDS = [
     "הנחה",
 ]
 
+NEGATIVE_REQUEST_KEYWORDS = [
+    "לאירוע",
+    "למסיבה",
+    "יום הולדת",
+    "עד 20 איש",
+    "קבוצת בנות",
+    "קבוצת חברים",
+    "מנגל בלבד",
+    "על האש בלבד",
+]
+
 
 @dataclass
 class MatchResult:
@@ -92,6 +130,8 @@ class MatchResult:
     score: int
     matched_keywords: list[str] = field(default_factory=list)
     matched_buckets: list[str] = field(default_factory=list)
+    matched_negative_keywords: list[str] = field(default_factory=list)
+    matched_owner_keywords: list[str] = field(default_factory=list)
     rejection_reason: str | None = None
 
 
@@ -111,7 +151,17 @@ def classify_post(text: str, min_score: int = 5) -> MatchResult:
             is_relevant=False,
             score=0,
             matched_keywords=exclude_matches,
+            matched_owner_keywords=exclude_matches,
             rejection_reason="owner_or_advertiser_wording",
+        )
+
+    negative_matches = _collect_matches(normalized, NEGATIVE_REQUEST_KEYWORDS)
+    if negative_matches:
+        return MatchResult(
+            is_relevant=False,
+            score=0,
+            matched_negative_keywords=negative_matches,
+            rejection_reason="unsuitable_event_request",
         )
 
     score = 0
@@ -140,6 +190,7 @@ def classify_post(text: str, min_score: int = 5) -> MatchResult:
         score=score,
         matched_keywords=deduped_keywords,
         matched_buckets=matched_buckets,
+        matched_negative_keywords=negative_matches,
         rejection_reason=None if is_relevant else "score_below_threshold",
     )
 

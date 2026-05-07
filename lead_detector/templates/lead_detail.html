@@ -19,6 +19,14 @@
       <div><strong>ניקוד מילים:</strong> {{ lead.keyword_score }}</div>
       <div><strong>ניקוד AI:</strong> {{ lead.ai_score if lead.ai_score is not none else "-" }}</div>
       <div><strong>קטגוריה:</strong> {{ lead.ai_category or "-" }}</div>
+      <div><strong>רמת חום:</strong> {{ lead.heat_level or "-" }}</div>
+      <div><strong>ציון התאמה:</strong> {{ lead.fit_score if lead.fit_score is not none else "-" }}</div>
+      <div><strong>סוג אורח:</strong> {{ lead.guest_type or "-" }}</div>
+      <div><strong>דחיפות:</strong> {{ lead.urgency or "-" }}</div>
+      <div><strong>אזור:</strong> {{ lead.requested_area or "-" }}</div>
+      <div><strong>כוונת בריכה:</strong> {{ lead.pool_intent or "-" }}</div>
+      <div><strong>כוונת פרטיות:</strong> {{ lead.privacy_intent or "-" }}</div>
+      <div><strong>פעולה מומלצת:</strong> {{ lead.recommended_action or "-" }}</div>
       <div><strong>טלגרם:</strong> {{ "כן" if lead.sent_to_telegram else "לא" }}</div>
     </div>
 
@@ -45,15 +53,36 @@
 
     <section class="content-block">
       <h3>סיבת התאמה</h3>
-      <div class="text-box">{{ lead.ai_reason_he or "-" }}</div>
+      <div class="text-box">{{ lead.short_reason_he or lead.ai_reason_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>סיבות חוסר התאמה</h3>
+      <div class="keyword-list">
+        {% for item in lead.bad_fit_reasons_list %}
+        <span class="keyword keyword-negative">{{ item }}</span>
+        {% else %}
+        <span class="muted">אין</span>
+        {% endfor %}
+      </div>
     </section>
 
     <section class="content-block">
       <div class="copy-row">
-        <h3>הצעת תגובה</h3>
+        <h3>תגובה ראשונה מוצעת</h3>
         <button type="button" class="copy-button" onclick="copyReply()">העתקה</button>
       </div>
-      <div class="text-box" id="replyText">{{ lead.suggested_reply_he or "-" }}</div>
+      <div class="text-box" id="replyText">{{ lead.suggested_first_reply_he or lead.suggested_reply_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>פולואפ מוצע</h3>
+      <div class="text-box">{{ lead.suggested_followup_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>שאלת מחיר/תאריכים מוצעת</h3>
+      <div class="text-box">{{ lead.suggested_price_question_he or "-" }}</div>
     </section>
 
     <section class="content-block">
@@ -73,11 +102,13 @@
     <section class="content-block">
       <h3>עדכון סטטוס</h3>
       <div class="status-actions">
-        {% for status in statuses %}
-        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
-          <input type="hidden" name="status" value="{{ status }}">
-          <button type="submit">{{ status }}</button>
-        </form>
+        {% for status in ['contacted', 'waiting_reply', 'closed', 'not_relevant', 'archived', 'new'] %}
+        {% if status in statuses %}
+          <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+            <input type="hidden" name="status" value="{{ status }}">
+            <button type="submit">{{ status }}</button>
+          </form>
+        {% endif %}
         {% endfor %}
       </div>
     </section>

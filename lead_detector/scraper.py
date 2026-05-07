@@ -2,6 +2,7 @@ import logging
 import random
 import re
 import time
+import argparse
 from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
@@ -9,6 +10,7 @@ from playwright.sync_api import Browser, BrowserContext, ElementHandle, sync_pla
 
 from ai_scorer import AIScoreResult, is_text_reasonable_for_ai, score_post_with_ai
 from config import load_settings
+from lead_intelligence import analyze_lead_intelligence
 from matcher import MatchResult, classify_post
 from reply_suggestions import generate_reply_suggestion
 from storage import LeadStorage
@@ -100,9 +102,17 @@ class GroupTarget:
 class GroupScanStats:
     group_name: str
     group_url: str
+    total_dom_cards_found: int = 0
+    posts_with_extracted_text: int = 0
+    posts_rejected_by_owner_keywords: int = 0
+    posts_rejected_by_low_keyword_score: int = 0
+    posts_passed_keyword_score: int = 0
+    posts_saved_to_leads: int = 0
+    duplicates_skipped: int = 0
     scanned: int = 0
     matched: int = 0
     alerts_sent: int = 0
+    failure_reason: str | None = None
 
 
 def human_delay(min_seconds: float, max_seconds: float) -> None:
@@ -264,8 +274,10 @@ def collect_post_handles(page, max_scrolls: int, max_posts: int, min_delay: floa
         "div[data-pagelet*='FeedUnit']",
         "div[aria-posinset]",
     ]
+    stagnant_scrolls = 0
 
     for scroll_index in range(max_scrolls):
+        before_count = len(seen_handles)
         logger.info("Scanning visible posts (scroll %s/%s)...", scroll_index + 1, max_scrolls)
         for selector in selectors:
             handles = page.locator(selector).element_handles()
@@ -276,6 +288,14 @@ def collect_post_handles(page, max_scrolls: int, max_posts: int, min_delay: floa
                     seen_handles.append(handle)
                     if len(seen_handles) >= max_posts:
                         return seen_handles[:max_posts]
+
+        if len(seen_handles) == before_count:
+            stagnant_scrolls += 1
+        else:
+            stagnant_scrolls = 0
+        if stagnant_scrolls >= 2:
+            logger.info("No new posts found for two consecutive scrolls. Stopping group scan early.")
+            break
 
         page.mouse.wheel(0, random.randint(1200, 2200))
         human_delay(min_delay, max_delay)
@@ -309,6 +329,21 @@ def extract_post_candidate(handle: ElementHandle, min_score: int) -> PostCandida
         raw_text=raw_text,
         text=text,
         match=match,
+    )
+
+
+def log_matching_debug(settings, candidate: PostCandidate, final_decision: str) -> None:
+    if not settings.debug_matching:
+        return
+
+    logger.info(
+        "DEBUG_MATCHING | preview=%s | positive=%s | negative=%s | owner=%s | keyword_score=%s | decision=%s",
+        build_text_preview(candidate.text),
+        ",".join(candidate.match.matched_keywords) or "-",
+        ",".join(candidate.match.matched_negative_keywords) or "-",
+        ",".join(candidate.match.matched_owner_keywords) or "-",
+        candidate.match.score,
+        final_decision,
     )
 
 
@@ -402,7 +437,7 @@ def is_ai_rejected(settings, candidate: PostCandidate, preview: str, group_name:
     return True
 
 
-def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> GroupScanStats:
+def scan_single_group(page, settings, storage: LeadStorage, group_url: str, rescan: bool = False) -> GroupScanStats:
     logger.info("GROUP_SCAN_START | url=%s", group_url)
     page.goto(group_url, wait_until="domcontentloaded", timeout=90000)
     human_delay(settings.min_delay_seconds, settings.max_delay_seconds)
@@ -414,10 +449,11 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
     post_handles = collect_post_handles(
         page=page,
         max_scrolls=settings.max_scrolls,
-        max_posts=settings.max_posts,
+        max_posts=settings.posts_per_group_limit,
         min_delay=settings.min_delay_seconds,
         max_delay=settings.max_delay_seconds,
     )
+    stats.total_dom_cards_found = len(post_handles)
 
     logger.info(
         "GROUP_POST_CONTAINERS | name=%s | url=%s | count=%s",
@@ -428,7 +464,7 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
 
     for handle in post_handles:
         try:
-            candidate = extract_post_candidate(handle, min_score=settings.min_score)
+            candidate = extract_post_candidate(handle, min_score=settings.min_keyword_score)
         except Exception as exc:  # noqa: BLE001
             logger.warning("POST_EXTRACTION_FAILED | group=%s | error=%s", group_name, exc)
             continue
@@ -437,17 +473,9 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
             continue
 
         stats.scanned += 1
+        stats.posts_with_extracted_text += 1
         preview = build_text_preview(candidate.text)
-
-        if storage.has_seen(candidate.post_key, candidate.post_url, candidate.text):
-            logger.info(
-                "DUPLICATE_SKIPPED | group=%s | key=%s | url=%s | preview=%s",
-                group_name,
-                candidate.post_key,
-                candidate.post_url or "-",
-                preview,
-            )
-            continue
+        duplicate_seen = False if rescan else storage.has_seen(candidate.post_key, candidate.post_url, candidate.text)
 
         storage.mark_seen(
             post_key=candidate.post_key,
@@ -457,6 +485,11 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
         )
 
         if not candidate.match.is_relevant:
+            if candidate.match.rejection_reason == "owner_or_advertiser_wording":
+                stats.posts_rejected_by_owner_keywords += 1
+            else:
+                stats.posts_rejected_by_low_keyword_score += 1
+            log_matching_debug(settings, candidate, f"rejected:{candidate.match.rejection_reason}")
             logger.info(
                 "REJECTED_POST | group=%s | key=%s | score=%s | reason=%s | url=%s | preview=%s",
                 group_name,
@@ -468,8 +501,11 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
             )
             continue
 
+        stats.posts_passed_keyword_score += 1
+        log_matching_debug(settings, candidate, "passed_keyword_score")
         maybe_apply_ai_scoring(settings, candidate, preview, group_name)
         if is_ai_rejected(settings, candidate, preview, group_name):
+            log_matching_debug(settings, candidate, "rejected:ai")
             continue
 
         ai_category = infer_category(candidate)
@@ -483,8 +519,15 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
                 matched_keywords=candidate.match.matched_keywords,
             )
         )
+        intelligence = analyze_lead_intelligence(
+            cleaned_text=candidate.text,
+            matched_keywords=candidate.match.matched_keywords,
+            enable_ai_scoring=settings.enable_ai_scoring,
+            openai_api_key=settings.openai_api_key,
+        )
+        suggested_reply_he = intelligence.suggested_first_reply_he or suggested_reply_he
 
-        candidate.lead_id = storage.save_lead(
+        candidate.lead_id, lead_action = storage.save_lead(
             source="facebook",
             group_name=group_name,
             group_url=group_url,
@@ -498,9 +541,52 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
             ai_category=ai_category,
             ai_reason_he=ai_reason_he,
             suggested_reply_he=suggested_reply_he,
+            guest_type=intelligence.guest_type,
+            urgency=intelligence.urgency,
+            requested_area=intelligence.requested_area,
+            pool_intent=intelligence.pool_intent,
+            privacy_intent=intelligence.privacy_intent,
+            bad_fit_reasons=intelligence.bad_fit_reasons,
+            fit_score=intelligence.fit_score,
+            heat_level=intelligence.heat_level,
+            short_reason_he=intelligence.short_reason_he,
+            recommended_action=intelligence.recommended_action,
+            suggested_first_reply_he=intelligence.suggested_first_reply_he,
+            suggested_followup_he=intelligence.suggested_followup_he,
+            suggested_price_question_he=intelligence.suggested_price_question_he,
             status="new",
             sent_to_telegram=0,
         )
+        stats.posts_saved_to_leads += 1
+        if lead_action == "created":
+            logger.info(
+                "LEAD_SAVED | group=%s | lead_id=%s | url=%s | preview=%s",
+                group_name,
+                candidate.lead_id,
+                candidate.post_url or "-",
+                preview,
+            )
+        else:
+            logger.info(
+                "LEAD_UPDATED | group=%s | lead_id=%s | url=%s | preview=%s",
+                group_name,
+                candidate.lead_id,
+                candidate.post_url or "-",
+                preview,
+            )
+
+        if duplicate_seen or (rescan and lead_action == "updated"):
+            stats.duplicates_skipped += 1
+            log_matching_debug(settings, candidate, "duplicate_skipped")
+            logger.info(
+                "LEAD_SKIPPED_DUPLICATE | group=%s | lead_id=%s | key=%s | url=%s | preview=%s",
+                group_name,
+                candidate.lead_id,
+                candidate.post_key,
+                candidate.post_url or "-",
+                preview,
+            )
+            continue
 
         stats.matched += 1
         logger.info(
@@ -527,6 +613,12 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
             suggested_reply_he=suggested_reply_he,
             ai_category=ai_category,
             ai_score=candidate.ai_result.score if candidate.ai_result else None,
+            heat_level=intelligence.heat_level,
+            fit_score=intelligence.fit_score,
+            guest_type=intelligence.guest_type,
+            urgency=intelligence.urgency,
+            requested_area=intelligence.requested_area,
+            pool_intent=intelligence.pool_intent,
             ai_result=candidate.ai_result,
         )
         if send_message(settings.telegram_bot_token, settings.telegram_chat_id, message):
@@ -545,11 +637,18 @@ def scan_single_group(page, settings, storage: LeadStorage, group_url: str) -> G
         human_delay(settings.min_delay_seconds, settings.max_delay_seconds)
 
     logger.info(
-        "GROUP_SCAN_DONE | name=%s | scanned=%s | matched=%s | alerts=%s",
+        "GROUP_SCAN_DONE | name=%s | scanned=%s | matched=%s | alerts=%s | dom_cards=%s | extracted=%s | owner_rejected=%s | low_score_rejected=%s | passed_keyword=%s | leads_saved=%s | duplicates_skipped=%s",
         stats.group_name,
         stats.scanned,
         stats.matched,
         stats.alerts_sent,
+        stats.total_dom_cards_found,
+        stats.posts_with_extracted_text,
+        stats.posts_rejected_by_owner_keywords,
+        stats.posts_rejected_by_low_keyword_score,
+        stats.posts_passed_keyword_score,
+        stats.posts_saved_to_leads,
+        stats.duplicates_skipped,
     )
     return stats
 
@@ -561,7 +660,7 @@ def resolve_group_targets(settings) -> list[GroupTarget]:
     return [GroupTarget(url=url, display_name=url) for url in urls]
 
 
-def scrape_group_posts() -> None:
+def scrape_group_posts(rescan: bool = False) -> None:
     settings = load_settings()
     if not settings.facebook_group_urls:
         raise ValueError("FACEBOOK_GROUP_URLS is required.")
@@ -571,6 +670,8 @@ def scrape_group_posts() -> None:
         )
 
     storage = LeadStorage(settings.database_path)
+    logger.info("Database path: %s", settings.database_path)
+    logger.info("Current leads count: %s", storage.count_leads())
     group_targets = resolve_group_targets(settings)
     group_stats: list[GroupScanStats] = []
 
@@ -592,6 +693,7 @@ def scrape_group_posts() -> None:
                     settings=settings,
                     storage=storage,
                     group_url=group_target.url,
+                    rescan=rescan,
                 )
                 group_stats.append(stats)
             except Exception as exc:  # noqa: BLE001
@@ -604,6 +706,7 @@ def scrape_group_posts() -> None:
                     GroupScanStats(
                         group_name=group_target.display_name,
                         group_url=group_target.url,
+                        failure_reason=str(exc),
                     )
                 )
 
@@ -620,13 +723,28 @@ def scrape_group_posts() -> None:
     logger.info("SCAN SUMMARY")
     for stats in group_stats:
         logger.info(
-            "%s -> scanned=%s matched=%s alerts=%s",
+            "%s -> scanned=%s matched=%s saved=%s alerts=%s dom_cards=%s extracted=%s owner_rejected=%s low_score_rejected=%s passed_keyword=%s duplicates_skipped=%s failure_reason=%s",
             stats.group_name,
             stats.scanned,
             stats.matched,
+            stats.posts_saved_to_leads,
             stats.alerts_sent,
+            stats.total_dom_cards_found,
+            stats.posts_with_extracted_text,
+            stats.posts_rejected_by_owner_keywords,
+            stats.posts_rejected_by_low_keyword_score,
+            stats.posts_passed_keyword_score,
+            stats.duplicates_skipped,
+            stats.failure_reason or "-",
         )
 
 
 if __name__ == "__main__":
-    scrape_group_posts()
+    parser = argparse.ArgumentParser(description="Facebook guest lead detector scraper")
+    parser.add_argument(
+        "--rescan",
+        action="store_true",
+        help="Ignore the seen/dedupe table for scanning while still avoiding duplicate lead rows.",
+    )
+    args = parser.parse_args()
+    scrape_group_posts(rescan=args.rescan)
