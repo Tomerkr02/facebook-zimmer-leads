@@ -1,7 +1,7 @@
 import threading
 import traceback
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, url_for
@@ -17,12 +17,14 @@ app = Flask(__name__)
 app.logger.info("DB_PATH | %s", settings.resolved_database_path)
 app.logger.info("Current leads count: %s", storage.count_leads())
 
-HEAT_LEVELS = ["hot", "warm", "cold", "reject"]
-GUEST_TYPES = ["couple", "couple_with_kids", "small_family", "large_group", "unknown"]
+HEAT_LEVELS = ["ultra_hot", "hot", "warm", "cold", "reject"]
+GUEST_TYPES = ["couple", "religious_couple", "romantic_couple", "couple_with_kids", "small_family", "large_group", "unknown"]
 URGENCIES = ["today", "tomorrow", "weekend", "shabbat", "date_specific", "flexible", "unknown"]
 SORT_OPTIONS: dict[str, str] = {
+    "priority": "Priority inbox",
     "newest": "החדשים ביותר",
     "fit_score": "ציון התאמה גבוה",
+    "conversion_score": "פוטנציאל סגירה",
     "hottest": "הכי חמים",
     "urgency": "הכי דחופים",
 }
@@ -36,10 +38,12 @@ STATUS_LABELS = {
     "archived": "ארכיון",
 }
 
-HEAT_LABELS = {"hot": "hot", "warm": "warm", "cold": "cold", "reject": "reject"}
-HEAT_ICONS = {"hot": "🔥", "warm": "🟡", "cold": "❄️", "reject": "⛔"}
+HEAT_LABELS = {"ultra_hot": "ULTRA HOT", "hot": "HOT", "warm": "WARM", "cold": "COLD", "reject": "REJECT"}
+HEAT_ICONS = {"ultra_hot": "🔥", "hot": "🔥", "warm": "🟡", "cold": "❄️", "reject": "⛔"}
 GUEST_TYPE_LABELS = {
     "couple": "זוג",
+    "religious_couple": "זוג דתי",
+    "romantic_couple": "זוג רומנטי",
     "couple_with_kids": "זוג עם ילדים",
     "small_family": "משפחה קטנה",
     "large_group": "קבוצה גדולה",
@@ -59,6 +63,7 @@ AREA_LABELS = {
     "rehovot_area": "אזור רחובות / קריית עקרון",
     "tel_aviv_area": "אזור תל אביב",
     "jerusalem_area": "אזור ירושלים",
+    "mixed_center_jerusalem": "מרכז / ירושלים",
     "north": "צפון",
     "south": "דרום",
     "eilat": "אילת",
@@ -69,6 +74,28 @@ POOL_LABELS = {
     "pool_general": "בריכה כללית",
     "no_pool": "ללא בריכה",
     "unknown": "לא ידוע",
+}
+FEEDBACK_LABELS = {
+    "good_lead": "ליד טוב",
+    "bad_lead": "ליד חלש",
+    "closed_successfully": "נסגר בהצלחה",
+    "irrelevant": "לא רלוונטי",
+    "too_expensive": "יקר מדי",
+    "too_large": "גדול מדי",
+    "pets": "בקשת חיות מחמד",
+    "bad_location": "מיקום לא מתאים",
+    "spam": "ספאם",
+    "owner_ad": "פרסום בעל מקום",
+}
+LEAD_TYPE_LABELS = {
+    "guest_seeker": "מחפש אירוח",
+    "owner_advertiser": "פרסום בעל מקום",
+    "spam": "ספאם",
+    "event_seeker": "מחפש אירוע",
+    "romantic_couple": "זוג רומנטי",
+    "religious_couple": "זוג דתי",
+    "family_small": "משפחה קטנה",
+    "budget_sensitive": "רגיש למחיר",
 }
 
 SCAN_CONTROLLER: dict[str, Any] = {
@@ -124,6 +151,26 @@ def _active_scan() -> dict[str, Any] | None:
 def _is_scan_running() -> bool:
     thread = SCAN_CONTROLLER.get("thread")
     return bool(thread and thread.is_alive())
+
+
+def _decorate_leads(leads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    decorated: list[dict[str, Any]] = []
+    now = datetime.now(timezone.utc)
+    threshold = timedelta(hours=settings.followup_after_hours)
+    for lead in leads:
+        item = dict(lead)
+        last_contacted_raw = item.get("last_contacted_at")
+        followup_recommended = False
+        if item.get("status") == "contacted" and last_contacted_raw:
+            try:
+                last_contacted_at = datetime.fromisoformat(str(last_contacted_raw).replace("Z", "+00:00"))
+                followup_recommended = now - last_contacted_at >= threshold
+            except ValueError:
+                followup_recommended = False
+        item["followup_recommended"] = followup_recommended
+        item["perfect_match"] = bool(item.get("vip_match"))
+        decorated.append(item)
+    return decorated
 
 
 def _update_scan_from_event(scan_run_id: int, event: dict[str, Any]) -> None:
@@ -254,8 +301,17 @@ def _filters_from_request() -> dict[str, str | int]:
         "urgency": (request.args.get("urgency") or "").strip(),
         "requested_area": (request.args.get("requested_area") or "").strip(),
         "ai_category": (request.args.get("ai_category") or "").strip(),
+        "lead_type": (request.args.get("lead_type") or "").strip(),
+        "religious_only": "1" if request.args.get("religious_only") else "",
+        "romantic_only": "1" if request.args.get("romantic_only") else "",
+        "family_only": "1" if request.args.get("family_only") else "",
+        "owner_ads_only": "1" if request.args.get("owner_ads_only") else "",
+        "rejected_only": "1" if request.args.get("rejected_only") else "",
+        "budget_sensitive_only": "1" if request.args.get("budget_sensitive_only") else "",
+        "include_archived": "1" if request.args.get("include_archived") else "",
+        "include_rejected": "1" if request.args.get("include_rejected") else "",
         "search": (request.args.get("search") or "").strip(),
-        "sort": (request.args.get("sort") or "newest").strip(),
+        "sort": (request.args.get("sort") or "priority").strip(),
         "limit": limit,
     }
 
@@ -278,6 +334,9 @@ def _dashboard_context() -> dict[str, object]:
         "urgency_labels": URGENCY_LABELS,
         "area_labels": AREA_LABELS,
         "pool_labels": POOL_LABELS,
+        "feedback_labels": FEEDBACK_LABELS,
+        "lead_type_labels": LEAD_TYPE_LABELS,
+        "lead_types": ["guest_seeker", "owner_advertiser", "spam", "event_seeker", "romantic_couple", "religious_couple", "family_small", "budget_sensitive"],
         "sort_options": SORT_OPTIONS,
         "latest_scan": latest_scan,
         "scan_running": _is_scan_running(),
@@ -324,6 +383,11 @@ def pool_label(value: str | None) -> str:
     return _label(value, POOL_LABELS)
 
 
+@app.template_filter("lead_type_label")
+def lead_type_label(value: str | None) -> str:
+    return _label(value, LEAD_TYPE_LABELS)
+
+
 @app.route("/")
 def home():
     return redirect(url_for("leads_page"))
@@ -332,7 +396,7 @@ def home():
 @app.route("/leads")
 def leads_page():
     filters = _filters_from_request()
-    leads = storage.list_leads(
+    leads = _decorate_leads(storage.list_leads(
         status=filters["status"] or None,
         limit=int(filters["limit"]),
         heat_level=filters["heat_level"] or None,
@@ -340,10 +404,37 @@ def leads_page():
         urgency=filters["urgency"] or None,
         requested_area=filters["requested_area"] or None,
         ai_category=filters["ai_category"] or None,
+        lead_type=filters["lead_type"] or None,
+        religious_only=bool(filters["religious_only"]),
+        romantic_only=bool(filters["romantic_only"]),
+        family_only=bool(filters["family_only"]),
+        owner_ads_only=bool(filters["owner_ads_only"]),
+        rejected_only=bool(filters["rejected_only"]),
+        budget_sensitive_only=bool(filters["budget_sensitive_only"]),
+        include_archived=bool(filters["include_archived"]),
+        include_rejected=bool(filters["include_rejected"]),
         search=filters["search"] or None,
-        sort_by=str(filters["sort"] or "newest"),
-    )
+        sort_by=str(filters["sort"] or "priority"),
+    ))
     return render_template("leads.html", leads=leads, filters=filters, **_dashboard_context())
+
+
+@app.route("/archived")
+def archived_page():
+    filters = _filters_from_request()
+    filters["include_archived"] = "1"
+    filters["status"] = "archived"
+    leads = _decorate_leads(storage.list_leads(status="archived", limit=int(filters["limit"]), include_archived=True, sort_by=str(filters["sort"] or "priority")))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", **_dashboard_context())
+
+
+@app.route("/rejected")
+def rejected_page():
+    filters = _filters_from_request()
+    filters["include_rejected"] = "1"
+    filters["rejected_only"] = "1"
+    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), rejected_only=True, include_rejected=True, include_owner_ads=True, sort_by=str(filters["sort"] or "priority")))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", **_dashboard_context())
 
 
 @app.route("/scans")
@@ -408,9 +499,10 @@ def lead_detail(lead_id: int):
     lead = storage.get_lead(lead_id)
     if not lead:
         abort(404)
+    decorated_lead = _decorate_leads([lead])[0]
     return render_template(
         "lead_detail.html",
-        lead=lead,
+        lead=decorated_lead,
         events=storage.list_lead_events(lead_id),
         **_dashboard_context(),
     )
@@ -422,6 +514,12 @@ def lead_status_update(lead_id: int):
     if status not in ALLOWED_LEAD_STATUSES:
         abort(400)
     storage.update_lead_status(lead_id, status)
+    if status == "not_relevant":
+        reason = (request.form.get("feedback_reason") or "irrelevant").strip()
+        feedback_type = reason if reason in FEEDBACK_LABELS else "irrelevant"
+        storage.add_lead_feedback(lead_id, feedback_type, feedback_reason=reason)
+    elif status == "closed":
+        storage.add_lead_feedback(lead_id, "closed_successfully", feedback_reason="closed")
     next_url = request.form.get("next", "").strip()
     if next_url:
         return redirect(next_url)
@@ -432,6 +530,20 @@ def lead_status_update(lead_id: int):
 def lead_notes_update(lead_id: int):
     notes = request.form.get("notes", "")
     storage.update_lead_notes(lead_id, notes)
+    return redirect(url_for("lead_detail", lead_id=lead_id))
+
+
+@app.post("/leads/<int:lead_id>/feedback")
+def lead_feedback_update(lead_id: int):
+    feedback_label = request.form.get("feedback", "").strip()
+    feedback_reason = (request.form.get("feedback_reason") or "").strip() or None
+    if feedback_label in {"good", "bad"}:
+        storage.update_lead_feedback(lead_id, feedback_label)
+    else:
+        storage.add_lead_feedback(lead_id, feedback_label, feedback_reason=feedback_reason)
+    next_url = request.form.get("next", "").strip()
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for("lead_detail", lead_id=lead_id))
 
 

@@ -215,6 +215,7 @@ code {
 }
 
 .stat-card.hot strong,
+.heat-ultra_hot,
 .heat-hot {
   color: var(--hot);
 }
@@ -286,6 +287,18 @@ label {
   flex-direction: column;
   gap: 8px;
   color: var(--muted);
+}
+
+.check-option {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding-top: 26px;
+}
+
+.check-option input {
+  width: auto;
 }
 
 input,
@@ -398,6 +411,12 @@ button:hover,
   border: 1px solid transparent;
 }
 
+.heat-ultra_hot {
+  background: radial-gradient(circle at top, rgba(255, 143, 97, 0.32), rgba(255, 143, 97, 0.12));
+  border-color: rgba(255, 143, 97, 0.45);
+  box-shadow: 0 0 20px rgba(255, 143, 97, 0.28);
+}
+
 .heat-hot {
   background: rgba(255, 143, 97, 0.14);
   border-color: rgba(255, 143, 97, 0.24);
@@ -415,8 +434,9 @@ button:hover,
 }
 
 .heat-reject {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(81, 88, 101, 0.28);
+  border-color: rgba(140, 152, 171, 0.22);
+  color: #c4ccd7;
 }
 
 .lead-grid {
@@ -430,6 +450,14 @@ button:hover,
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.lead-card-vip {
+  border-color: rgba(212, 177, 108, 0.42);
+  background:
+    linear-gradient(160deg, rgba(212, 177, 108, 0.12), rgba(255, 255, 255, 0.03) 42%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: 0 24px 70px rgba(212, 177, 108, 0.14);
 }
 
 .metric-row {
@@ -457,7 +485,8 @@ button:hover,
 }
 
 .action-row,
-.quick-status-grid {
+.quick-status-grid,
+.action-bar {
   display: grid;
   gap: 10px;
 }
@@ -468,6 +497,18 @@ button:hover,
 
 .quick-status-grid {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.action-bar {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.action-bar.vertical {
+  grid-template-columns: 1fr;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .quick-status-grid form,
@@ -528,6 +569,31 @@ button:hover,
 .keyword-negative {
   background: rgba(255, 143, 97, 0.12);
   color: #ffb599;
+}
+
+.keyword-attention {
+  background: rgba(240, 202, 115, 0.16);
+  color: #f7d37a;
+}
+
+.vip-pill {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(212, 177, 108, 0.26), rgba(212, 177, 108, 0.1));
+  border: 1px solid rgba(212, 177, 108, 0.36);
+  color: #f8e1a9;
+  font-weight: 700;
+}
+
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.reject-list {
+  color: #ffb3ae;
 }
 
 .status-actions {
@@ -687,7 +753,8 @@ button:hover,
 
   .filters,
   .action-row,
-  .status-actions {
+  .status-actions,
+  .action-bar {
     grid-template-columns: 1fr;
   }
 

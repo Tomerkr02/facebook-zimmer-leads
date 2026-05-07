@@ -11,6 +11,15 @@ from matcher import MatchResult, score_label
 logger = logging.getLogger(__name__)
 
 
+HEAT_LABELS = {
+    "ultra_hot": "🔥 ULTRA HOT",
+    "hot": "🔥 HOT",
+    "warm": "🟡 WARM",
+    "cold": "❄️ COLD",
+    "reject": "⛔ REJECT",
+}
+
+
 def build_alert_message(
     lead_id: int,
     status: str,
@@ -24,8 +33,13 @@ def build_alert_message(
     suggested_reply_he: str | None,
     ai_category: str | None,
     ai_score: int | None,
+    intent_score: int | None,
+    heat_score: int | None,
+    conversion_score: int | None,
+    vibe_score: int | None,
     heat_level: str | None,
     fit_score: int | None,
+    fit_reason_he: str | None,
     guest_type: str | None,
     urgency: str | None,
     requested_area: str | None,
@@ -41,13 +55,21 @@ def build_alert_message(
     category_text = ai_category or (ai_result.category if ai_result else "-")
     reason_text = ai_reason_he or (ai_result.reason_he if ai_result else "ליד שעבר סינון מילות מפתח.")
     reply_text = suggested_reply_he or (ai_result.suggested_reply_he if ai_result else "לא זמין")
+    heat_text = HEAT_LABELS.get((heat_level or "").strip().lower(), heat_level or "-")
 
     return (
         "🔥 ליד חדש לצימר\n\n"
         f"Lead ID: {lead_id}\n"
         f"סטטוס: {status}\n\n"
+        f"{heat_text}\n\n"
+        f"למה זוהה כליד: {match_result.why_detected_he or '-'}\n"
+        f"למה מתאים ל-Royal Water Villa: {fit_reason_he or '-'}\n"
+        f"Intent Score: {intent_score if intent_score is not None else match_result.intent_score}\n"
+        f"Fit Score: {fit_score if fit_score is not None else '-'}\n"
+        f"Heat Score: {heat_score if heat_score is not None else '-'}\n"
+        f"Conversion Score: {conversion_score if conversion_score is not None else '-'}\n"
+        f"Vibe Score: {vibe_score if vibe_score is not None else '-'}\n"
         f"רמת חום: {heat_level or '-'}\n"
-        f"ציון התאמה: {fit_score if fit_score is not None else '-'}\n"
         f"סוג אורח: {guest_type or '-'}\n"
         f"דחיפות: {urgency or '-'}\n"
         f"אזור: {requested_area or '-'}\n"
@@ -62,6 +84,10 @@ def build_alert_message(
         f"{reply_text}\n\n"
         "התאמות:\n"
         f"{keywords_text}\n\n"
+        "סיבות כוונה:\n"
+        f"{', '.join(match_result.intent_reasons) or '-'}\n\n"
+        "סיבות דחיפות:\n"
+        f"{', '.join(match_result.urgency_reasons) or '-'}\n\n"
         "תוכן:\n"
         f"{content}\n\n"
         "כותב:\n"

@@ -536,12 +536,16 @@ def log_matching_debug(settings, candidate: PostCandidate, final_decision: str) 
         return
 
     logger.info(
-        "DEBUG_MATCHING | preview=%s | positive=%s | negative=%s | owner=%s | keyword_score=%s | decision=%s",
+        "DEBUG_MATCHING | preview=%s | positive=%s | negative=%s | owner=%s | keyword_score=%s | intent_score=%s | intent=%s | timing=%s | couple=%s | decision=%s",
         build_text_preview(candidate.text),
         ",".join(candidate.match.matched_keywords) or "-",
         ",".join(candidate.match.matched_negative_keywords) or "-",
         ",".join(candidate.match.matched_owner_keywords) or "-",
         candidate.match.score,
+        candidate.match.intent_score,
+        ",".join(candidate.match.intent_reasons) or "-",
+        ",".join(candidate.match.urgency_reasons) or "-",
+        ",".join(candidate.match.couple_family_reasons) or "-",
         final_decision,
     )
 
@@ -838,6 +842,8 @@ def scan_single_group(
             openai_api_key=settings.openai_api_key,
         )
         suggested_reply_he = intelligence.suggested_first_reply_he or suggested_reply_he
+        fit_rejected = intelligence.heat_level == "reject"
+        lead_status = "not_relevant" if fit_rejected else "new"
 
         lead_action = "debug_only"
         if runtime.persist_leads:
@@ -868,7 +874,37 @@ def scan_single_group(
                 suggested_first_reply_he=intelligence.suggested_first_reply_he,
                 suggested_followup_he=intelligence.suggested_followup_he,
                 suggested_price_question_he=intelligence.suggested_price_question_he,
-                status="new",
+                intent_score=candidate.match.intent_score,
+                intent_reasons=candidate.match.intent_reasons,
+                urgency_reasons=candidate.match.urgency_reasons,
+                pet_friendly_requested=candidate.match.pet_friendly_requested,
+                lead_type=intelligence.lead_type,
+                group_size_estimate=intelligence.group_size_estimate,
+                religious_signal=intelligence.religious_signal,
+                romantic_signal=intelligence.romantic_signal,
+                family_signal=intelligence.family_signal,
+                privacy_signal=intelligence.privacy_signal,
+                urgency_signal=intelligence.urgency_signal,
+                budget_signal=intelligence.budget_signal,
+                pet_request=intelligence.pet_request,
+                preferred_area=intelligence.preferred_area,
+                required_area=intelligence.required_area,
+                flexibility_level=intelligence.flexibility_level,
+                pool_requirement_strength=intelligence.pool_requirement_strength,
+                emotional_vibe=intelligence.emotional_vibe,
+                fit_reason_he=intelligence.fit_reason_he,
+                reject_reason_he=intelligence.reject_reason_he,
+                conversion_reason_he=intelligence.conversion_reason_he,
+                heat_score=intelligence.heat_score,
+                conversion_score=intelligence.conversion_score,
+                vibe_score=intelligence.vibe_score,
+                vip_match=intelligence.vip_match,
+                owner_advertisement=intelligence.owner_advertisement,
+                budget_sensitive=intelligence.budget_sensitive,
+                ai_explanation_he=intelligence.ai_explanation_he,
+                recommended_media_type=intelligence.recommended_media_type,
+                recommended_media_reason=intelligence.recommended_media_reason,
+                status=lead_status,
                 sent_to_telegram=0,
             )
             stats.posts_saved_to_leads += 1
@@ -906,16 +942,34 @@ def scan_single_group(
                 )
             continue
 
+        if fit_rejected:
+            debug_record.reject_reason = "fit_reject"
+            logger.info(
+                "REJECTED_POST | group=%s | lead_id=%s | key=%s | reason=fit_reject | reject_reason=%s | url=%s | preview=%s",
+                group_name,
+                candidate.lead_id,
+                candidate.post_key,
+                intelligence.reject_reason_he or intelligence.short_reason_he or "-",
+                candidate.post_url or "-",
+                preview,
+            )
+            continue
+
         stats.matched += 1
         debug_record.reject_reason = None
         logger.info(
-            "MATCHED_LEAD | group=%s | lead_id=%s | key=%s | score=%s | ai_score=%s | keywords=%s | url=%s | preview=%s",
+            "MATCHED_LEAD | group=%s | lead_id=%s | key=%s | score=%s | intent_score=%s | ai_score=%s | keywords=%s | why=%s | intent=%s | timing=%s | couple=%s | url=%s | preview=%s",
             group_name,
             candidate.lead_id,
             candidate.post_key,
             candidate.match.score,
+            candidate.match.intent_score,
             candidate.ai_result.score if candidate.ai_result else "-",
             ",".join(candidate.match.matched_keywords) or "-",
+            candidate.match.why_detected_he or "-",
+            ",".join(candidate.match.intent_reasons) or "-",
+            ",".join(candidate.match.urgency_reasons) or "-",
+            ",".join(candidate.match.couple_family_reasons) or "-",
             candidate.post_url or "-",
             preview,
         )
@@ -932,8 +986,13 @@ def scan_single_group(
             suggested_reply_he=suggested_reply_he,
             ai_category=ai_category,
             ai_score=candidate.ai_result.score if candidate.ai_result else None,
+            intent_score=intelligence.intent_score,
+            heat_score=intelligence.heat_score,
+            conversion_score=intelligence.conversion_score,
+            vibe_score=intelligence.vibe_score,
             heat_level=intelligence.heat_level,
             fit_score=intelligence.fit_score,
+            fit_reason_he=intelligence.fit_reason_he,
             guest_type=intelligence.guest_type,
             urgency=intelligence.urgency,
             requested_area=intelligence.requested_area,

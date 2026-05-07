@@ -30,6 +30,19 @@ ALLOWED_EVENT_TYPES = {
     "notes_updated",
 }
 
+ALLOWED_FEEDBACK_TYPES = {
+    "good_lead",
+    "bad_lead",
+    "closed_successfully",
+    "irrelevant",
+    "too_expensive",
+    "too_large",
+    "pets",
+    "bad_location",
+    "spam",
+    "owner_ad",
+}
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -106,6 +119,20 @@ class LeadStorage:
             )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS lead_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lead_id INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    feedback_type TEXT NOT NULL,
+                    feedback_reason TEXT,
+                    original_scores_json TEXT,
+                    lead_snapshot_json TEXT,
+                    FOREIGN KEY (lead_id) REFERENCES leads(id)
+                )
+                """
+            )
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS scan_runs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     started_at TEXT NOT NULL,
@@ -170,6 +197,12 @@ class LeadStorage:
             )
             connection.execute(
                 """
+                CREATE INDEX IF NOT EXISTS idx_lead_feedback_lead_created
+                ON lead_feedback(lead_id, created_at DESC)
+                """
+            )
+            connection.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_scan_runs_started_at
                 ON scan_runs(started_at DESC)
                 """
@@ -215,6 +248,39 @@ class LeadStorage:
             "suggested_first_reply_he": "TEXT",
             "suggested_followup_he": "TEXT",
             "suggested_price_question_he": "TEXT",
+            "intent_score": "INTEGER DEFAULT 0",
+            "intent_reasons": "TEXT",
+            "urgency_reasons": "TEXT",
+            "pet_friendly_requested": "INTEGER DEFAULT 0",
+            "lead_type": "TEXT",
+            "group_size_estimate": "INTEGER DEFAULT 0",
+            "religious_signal": "INTEGER DEFAULT 0",
+            "romantic_signal": "INTEGER DEFAULT 0",
+            "family_signal": "INTEGER DEFAULT 0",
+            "privacy_signal": "INTEGER DEFAULT 0",
+            "urgency_signal": "INTEGER DEFAULT 0",
+            "budget_signal": "TEXT",
+            "pet_request": "INTEGER DEFAULT 0",
+            "preferred_area": "TEXT",
+            "required_area": "TEXT",
+            "flexibility_level": "TEXT",
+            "pool_requirement_strength": "TEXT",
+            "emotional_vibe": "TEXT",
+            "fit_reason_he": "TEXT",
+            "reject_reason_he": "TEXT",
+            "conversion_reason_he": "TEXT",
+            "heat_score": "INTEGER DEFAULT 0",
+            "conversion_score": "INTEGER DEFAULT 0",
+            "vibe_score": "INTEGER DEFAULT 0",
+            "vip_match": "INTEGER DEFAULT 0",
+            "owner_advertisement": "INTEGER DEFAULT 0",
+            "budget_sensitive": "INTEGER DEFAULT 0",
+            "ai_explanation_he": "TEXT",
+            "feedback_label": "TEXT",
+            "feedback_at": "TEXT",
+            "last_contacted_at": "TEXT",
+            "recommended_media_type": "TEXT",
+            "recommended_media_reason": "TEXT",
         }
         existing_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(leads)").fetchall()
@@ -530,6 +596,7 @@ class LeadStorage:
             "urgency",
             "requested_area",
             "ai_category",
+            "lead_type",
         ]
         options: dict[str, list[str]] = {}
         with self._connect() as connection:
@@ -574,6 +641,37 @@ class LeadStorage:
         suggested_first_reply_he: str | None = None,
         suggested_followup_he: str | None = None,
         suggested_price_question_he: str | None = None,
+        intent_score: int = 0,
+        intent_reasons: list[str] | None = None,
+        urgency_reasons: list[str] | None = None,
+        pet_friendly_requested: bool = False,
+        lead_type: str | None = None,
+        group_size_estimate: int = 0,
+        religious_signal: bool = False,
+        romantic_signal: bool = False,
+        family_signal: bool = False,
+        privacy_signal: bool = False,
+        urgency_signal: bool = False,
+        budget_signal: str | None = None,
+        pet_request: bool = False,
+        preferred_area: str | None = None,
+        required_area: str | None = None,
+        flexibility_level: str | None = None,
+        pool_requirement_strength: str | None = None,
+        emotional_vibe: str | None = None,
+        fit_reason_he: str | None = None,
+        reject_reason_he: str | None = None,
+        conversion_reason_he: str | None = None,
+        heat_score: int = 0,
+        conversion_score: int = 0,
+        vibe_score: int = 0,
+        vip_match: bool = False,
+        owner_advertisement: bool = False,
+        budget_sensitive: bool = False,
+        ai_explanation_he: str | None = None,
+        last_contacted_at: str | None = None,
+        recommended_media_type: str | None = None,
+        recommended_media_reason: str | None = None,
         status: str = "new",
         sent_to_telegram: int = 0,
         notes: str | None = None,
@@ -585,6 +683,8 @@ class LeadStorage:
         text_hash = self.build_text_hash(cleaned_text or post_text)
         keywords_serialized = self.serialize_keywords(matched_keywords)
         bad_fit_serialized = self.serialize_string_list(bad_fit_reasons)
+        intent_reasons_serialized = self.serialize_string_list(intent_reasons)
+        urgency_reasons_serialized = self.serialize_string_list(urgency_reasons)
         logger.info(
             "LEAD_SAVE_ATTEMPT | db_path=%s | post_url=%s | text_hash=%s",
             self.database_path,
@@ -637,6 +737,37 @@ class LeadStorage:
                             suggested_first_reply_he = COALESCE(?, suggested_first_reply_he),
                             suggested_followup_he = COALESCE(?, suggested_followup_he),
                             suggested_price_question_he = COALESCE(?, suggested_price_question_he),
+                            intent_score = ?,
+                            intent_reasons = COALESCE(?, intent_reasons),
+                            urgency_reasons = COALESCE(?, urgency_reasons),
+                            pet_friendly_requested = ?,
+                            lead_type = COALESCE(?, lead_type),
+                            group_size_estimate = ?,
+                            religious_signal = ?,
+                            romantic_signal = ?,
+                            family_signal = ?,
+                            privacy_signal = ?,
+                            urgency_signal = ?,
+                            budget_signal = COALESCE(?, budget_signal),
+                            pet_request = ?,
+                            preferred_area = COALESCE(?, preferred_area),
+                            required_area = COALESCE(?, required_area),
+                            flexibility_level = COALESCE(?, flexibility_level),
+                            pool_requirement_strength = COALESCE(?, pool_requirement_strength),
+                            emotional_vibe = COALESCE(?, emotional_vibe),
+                            fit_reason_he = COALESCE(?, fit_reason_he),
+                            reject_reason_he = COALESCE(?, reject_reason_he),
+                            conversion_reason_he = COALESCE(?, conversion_reason_he),
+                            heat_score = ?,
+                            conversion_score = ?,
+                            vibe_score = ?,
+                            vip_match = ?,
+                            owner_advertisement = ?,
+                            budget_sensitive = ?,
+                            ai_explanation_he = COALESCE(?, ai_explanation_he),
+                            last_contacted_at = COALESCE(?, last_contacted_at),
+                            recommended_media_type = COALESCE(?, recommended_media_type),
+                            recommended_media_reason = COALESCE(?, recommended_media_reason),
                             sent_to_telegram = MAX(sent_to_telegram, ?),
                             notes = COALESCE(notes, ?),
                             text_hash = ?
@@ -670,6 +801,37 @@ class LeadStorage:
                             suggested_first_reply_he,
                             suggested_followup_he,
                             suggested_price_question_he,
+                            intent_score,
+                            intent_reasons_serialized,
+                            urgency_reasons_serialized,
+                            1 if pet_friendly_requested else 0,
+                            lead_type,
+                            group_size_estimate,
+                            1 if religious_signal else 0,
+                            1 if romantic_signal else 0,
+                            1 if family_signal else 0,
+                            1 if privacy_signal else 0,
+                            1 if urgency_signal else 0,
+                            budget_signal,
+                            1 if pet_request else 0,
+                            preferred_area,
+                            required_area,
+                            flexibility_level,
+                            pool_requirement_strength,
+                            emotional_vibe,
+                            fit_reason_he,
+                            reject_reason_he,
+                            conversion_reason_he,
+                            heat_score,
+                            conversion_score,
+                            vibe_score,
+                            1 if vip_match else 0,
+                            1 if owner_advertisement else 0,
+                            1 if budget_sensitive else 0,
+                            ai_explanation_he,
+                            last_contacted_at,
+                            recommended_media_type,
+                            recommended_media_reason,
                             sent_to_telegram,
                             notes,
                             text_hash,
@@ -686,78 +848,142 @@ class LeadStorage:
                     logger.info("LEAD_UPDATED | db_path=%s | lead_id=%s", self.database_path, lead_id)
                     return lead_id, "updated"
 
+                insert_columns = [
+                    "created_at",
+                    "updated_at",
+                    "source",
+                    "group_name",
+                    "group_url",
+                    "author",
+                    "post_url",
+                    "post_text",
+                    "cleaned_text",
+                    "matched_keywords",
+                    "keyword_score",
+                    "ai_score",
+                    "ai_category",
+                    "ai_reason_he",
+                    "suggested_reply_he",
+                    "guest_type",
+                    "urgency",
+                    "requested_area",
+                    "pool_intent",
+                    "privacy_intent",
+                    "bad_fit_reasons",
+                    "fit_score",
+                    "heat_level",
+                    "short_reason_he",
+                    "recommended_action",
+                    "suggested_first_reply_he",
+                    "suggested_followup_he",
+                    "suggested_price_question_he",
+                    "intent_score",
+                    "intent_reasons",
+                    "urgency_reasons",
+                    "pet_friendly_requested",
+                    "lead_type",
+                    "group_size_estimate",
+                    "religious_signal",
+                    "romantic_signal",
+                    "family_signal",
+                    "privacy_signal",
+                    "urgency_signal",
+                    "budget_signal",
+                    "pet_request",
+                    "preferred_area",
+                    "required_area",
+                    "flexibility_level",
+                    "pool_requirement_strength",
+                    "emotional_vibe",
+                    "fit_reason_he",
+                    "reject_reason_he",
+                    "conversion_reason_he",
+                    "heat_score",
+                    "conversion_score",
+                    "vibe_score",
+                    "vip_match",
+                    "owner_advertisement",
+                    "budget_sensitive",
+                    "ai_explanation_he",
+                    "last_contacted_at",
+                    "recommended_media_type",
+                    "recommended_media_reason",
+                    "status",
+                    "sent_to_telegram",
+                    "notes",
+                    "text_hash",
+                ]
+                insert_values = (
+                    now,
+                    now,
+                    source,
+                    group_name,
+                    group_url,
+                    author,
+                    post_url,
+                    post_text,
+                    cleaned_text,
+                    keywords_serialized,
+                    keyword_score,
+                    ai_score,
+                    ai_category,
+                    ai_reason_he,
+                    suggested_reply_he,
+                    guest_type,
+                    urgency,
+                    requested_area,
+                    pool_intent,
+                    privacy_intent,
+                    bad_fit_serialized,
+                    fit_score,
+                    heat_level,
+                    short_reason_he,
+                    recommended_action,
+                    suggested_first_reply_he,
+                    suggested_followup_he,
+                    suggested_price_question_he,
+                    intent_score,
+                    intent_reasons_serialized,
+                    urgency_reasons_serialized,
+                    1 if pet_friendly_requested else 0,
+                    lead_type,
+                    group_size_estimate,
+                    1 if religious_signal else 0,
+                    1 if romantic_signal else 0,
+                    1 if family_signal else 0,
+                    1 if privacy_signal else 0,
+                    1 if urgency_signal else 0,
+                    budget_signal,
+                    1 if pet_request else 0,
+                    preferred_area,
+                    required_area,
+                    flexibility_level,
+                    pool_requirement_strength,
+                    emotional_vibe,
+                    fit_reason_he,
+                    reject_reason_he,
+                    conversion_reason_he,
+                    heat_score,
+                    conversion_score,
+                    vibe_score,
+                    1 if vip_match else 0,
+                    1 if owner_advertisement else 0,
+                    1 if budget_sensitive else 0,
+                    ai_explanation_he,
+                    last_contacted_at,
+                    recommended_media_type,
+                    recommended_media_reason,
+                    status,
+                    sent_to_telegram,
+                    notes,
+                    text_hash,
+                )
                 cursor = connection.execute(
-                    """
-                    INSERT INTO leads (
-                        created_at,
-                        updated_at,
-                        source,
-                        group_name,
-                        group_url,
-                        author,
-                        post_url,
-                        post_text,
-                        cleaned_text,
-                        matched_keywords,
-                        keyword_score,
-                        ai_score,
-                        ai_category,
-                        ai_reason_he,
-                        suggested_reply_he,
-                        guest_type,
-                        urgency,
-                        requested_area,
-                        pool_intent,
-                        privacy_intent,
-                        bad_fit_reasons,
-                        fit_score,
-                        heat_level,
-                        short_reason_he,
-                        recommended_action,
-                        suggested_first_reply_he,
-                        suggested_followup_he,
-                        suggested_price_question_he,
-                        status,
-                        sent_to_telegram,
-                        notes,
-                        text_hash
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    f"""
+                    INSERT INTO leads ({", ".join(insert_columns)})
+                    VALUES ({", ".join(["?"] * len(insert_columns))})
                     """,
-                    (
-                        now,
-                        now,
-                        source,
-                        group_name,
-                        group_url,
-                        author,
-                        post_url,
-                        post_text,
-                        cleaned_text,
-                        keywords_serialized,
-                        keyword_score,
-                        ai_score,
-                        ai_category,
-                        ai_reason_he,
-                        suggested_reply_he,
-                        guest_type,
-                        urgency,
-                        requested_area,
-                        pool_intent,
-                        privacy_intent,
-                        bad_fit_serialized,
-                        fit_score,
-                        heat_level,
-                        short_reason_he,
-                        recommended_action,
-                        suggested_first_reply_he,
-                        suggested_followup_he,
-                        suggested_price_question_he,
-                        status,
-                        sent_to_telegram,
-                        notes,
-                        text_hash,
-                    ),
+                    insert_values,
                 )
                 lead_id = int(cursor.lastrowid)
                 connection.execute(
@@ -815,14 +1041,40 @@ class LeadStorage:
         urgency: str | None = None,
         requested_area: str | None = None,
         ai_category: str | None = None,
+        lead_type: str | None = None,
+        religious_only: bool = False,
+        romantic_only: bool = False,
+        family_only: bool = False,
+        owner_ads_only: bool = False,
+        rejected_only: bool = False,
+        budget_sensitive_only: bool = False,
+        include_archived: bool = False,
+        include_rejected: bool = False,
+        include_owner_ads: bool = False,
         search: str | None = None,
-        sort_by: str = "newest",
+        sort_by: str = "priority",
     ) -> list[dict[str, Any]]:
         sort_mapping = {
+            "priority": """
+                CASE heat_level
+                    WHEN 'ultra_hot' THEN 6
+                    WHEN 'hot' THEN 5
+                    WHEN 'warm' THEN 4
+                    WHEN 'cold' THEN 2
+                    WHEN 'reject' THEN 1
+                    ELSE 0
+                END DESC,
+                COALESCE(vip_match, 0) DESC,
+                COALESCE(fit_score, 0) DESC,
+                datetime(created_at) DESC,
+                id DESC
+            """,
             "newest": "datetime(created_at) DESC, id DESC",
             "fit_score": "fit_score DESC, datetime(created_at) DESC",
+            "conversion_score": "conversion_score DESC, fit_score DESC, datetime(created_at) DESC",
             "hottest": """
                 CASE heat_level
+                    WHEN 'ultra_hot' THEN 5
                     WHEN 'hot' THEN 4
                     WHEN 'warm' THEN 3
                     WHEN 'cold' THEN 2
@@ -868,6 +1120,30 @@ class LeadStorage:
         if ai_category:
             filters.append("ai_category = ?")
             params.append(ai_category)
+        if lead_type:
+            filters.append("lead_type = ?")
+            params.append(lead_type)
+        if not include_archived and not status:
+            filters.append("COALESCE(status, 'new') != 'archived'")
+        if not include_rejected and not rejected_only and not status:
+            filters.append("COALESCE(status, 'new') != 'not_relevant'")
+            filters.append("COALESCE(heat_level, 'cold') != 'reject'")
+        if not include_owner_ads and not owner_ads_only:
+            filters.append("COALESCE(owner_advertisement, 0) = 0")
+        if not include_rejected and not heat_level:
+            filters.append("COALESCE(heat_level, 'cold') != 'cold'")
+        if religious_only:
+            filters.append("religious_signal = 1")
+        if romantic_only:
+            filters.append("romantic_signal = 1")
+        if family_only:
+            filters.append("family_signal = 1")
+        if owner_ads_only:
+            filters.append("owner_advertisement = 1")
+        if rejected_only:
+            filters.append("heat_level = 'reject'")
+        if budget_sensitive_only:
+            filters.append("budget_sensitive = 1")
         if search:
             filters.append(
                 "(COALESCE(cleaned_text, '') LIKE ? OR COALESCE(post_text, '') LIKE ? OR COALESCE(group_name, '') LIKE ? OR COALESCE(author, '') LIKE ?)"
@@ -882,19 +1158,33 @@ class LeadStorage:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_dict(row) for row in rows]
 
-    def summary_stats(self) -> dict[str, Any]:
+    def summary_stats(
+        self,
+        *,
+        include_archived: bool = False,
+        include_rejected: bool = False,
+    ) -> dict[str, Any]:
         with self._connect() as connection:
             today_prefix = datetime.now(timezone.utc).date().isoformat()
-            total = int(connection.execute("SELECT COUNT(*) AS count FROM leads").fetchone()["count"])
-            hot = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE heat_level = 'hot'").fetchone()["count"])
-            warm = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE heat_level = 'warm'").fetchone()["count"])
-            new_leads = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'new'").fetchone()["count"])
-            contacted = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status IN ('contacted', 'waiting_reply')").fetchone()["count"])
-            closed = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'closed'").fetchone()["count"])
-            rejected = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'not_relevant' OR heat_level = 'reject'").fetchone()["count"])
+            visibility_filters: list[str] = ["COALESCE(owner_advertisement, 0) = 0"]
+            if not include_archived:
+                visibility_filters.append("COALESCE(status, 'new') != 'archived'")
+            if not include_rejected:
+                visibility_filters.append("COALESCE(status, 'new') != 'not_relevant'")
+                visibility_filters.append("COALESCE(heat_level, 'cold') != 'reject'")
+            visible_where = " WHERE " + " AND ".join(visibility_filters)
+
+            total = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where}").fetchone()["count"])
+            hot = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND heat_level IN ('ultra_hot', 'hot')").fetchone()["count"])
+            warm = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND heat_level = 'warm'").fetchone()["count"])
+            new_leads = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'new'").fetchone()["count"])
+            contacted = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status IN ('contacted', 'waiting_reply')").fetchone()["count"])
+            closed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'closed'").fetchone()["count"])
+            rejected = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'not_relevant' OR heat_level = 'reject' OR owner_advertisement = 1").fetchone()["count"])
+            archived = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'archived'").fetchone()["count"])
             today = int(
                 connection.execute(
-                    "SELECT COUNT(*) AS count FROM leads WHERE substr(created_at, 1, 10) = ?",
+                    f"SELECT COUNT(*) AS count FROM leads{visible_where} AND substr(created_at, 1, 10) = ?",
                     (today_prefix,),
                 ).fetchone()["count"]
             )
@@ -907,6 +1197,7 @@ class LeadStorage:
             "contacted": contacted,
             "closed": closed,
             "rejected": rejected,
+            "archived": archived,
             "today_leads": today,
             "conversion_rate_placeholder": conversion_rate_placeholder,
         }
@@ -929,7 +1220,9 @@ class LeadStorage:
                 """
                 SELECT COALESCE(group_name, group_url, 'לא ידוע') AS label, COUNT(*) AS hot_count
                 FROM leads
-                WHERE heat_level = 'hot'
+                WHERE heat_level IN ('ultra_hot', 'hot')
+                  AND COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                  AND COALESCE(owner_advertisement, 0) = 0
                 GROUP BY COALESCE(group_name, group_url, 'לא ידוע')
                 ORDER BY hot_count DESC, label ASC
                 LIMIT 1
@@ -939,6 +1232,8 @@ class LeadStorage:
                 """
                 SELECT COALESCE(requested_area, 'unknown') AS label, COUNT(*) AS count
                 FROM leads
+                WHERE COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                  AND COALESCE(owner_advertisement, 0) = 0
                 GROUP BY COALESCE(requested_area, 'unknown')
                 ORDER BY count DESC, label ASC
                 LIMIT 1
@@ -948,6 +1243,8 @@ class LeadStorage:
                 """
                 SELECT COALESCE(guest_type, 'unknown') AS label, COUNT(*) AS count
                 FROM leads
+                WHERE COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                  AND COALESCE(owner_advertisement, 0) = 0
                 GROUP BY COALESCE(guest_type, 'unknown')
                 ORDER BY count DESC, label ASC
                 LIMIT 1
@@ -957,6 +1254,8 @@ class LeadStorage:
                 """
                 SELECT COALESCE(urgency, 'unknown') AS label, COUNT(*) AS count
                 FROM leads
+                WHERE COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                  AND COALESCE(owner_advertisement, 0) = 0
                 GROUP BY COALESCE(urgency, 'unknown')
                 ORDER BY count DESC, label ASC
                 LIMIT 1
@@ -964,7 +1263,13 @@ class LeadStorage:
             ).fetchone()
             today_count = int(
                 connection.execute(
-                    "SELECT COUNT(*) AS count FROM leads WHERE substr(created_at, 1, 10) = ?",
+                    """
+                    SELECT COUNT(*) AS count
+                    FROM leads
+                    WHERE substr(created_at, 1, 10) = ?
+                      AND COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                      AND COALESCE(owner_advertisement, 0) = 0
+                    """,
                     (today_prefix,),
                 ).fetchone()["count"]
             )
@@ -974,24 +1279,64 @@ class LeadStorage:
                     SELECT COUNT(*) AS count
                     FROM leads
                     WHERE substr(created_at, 1, 10) = ?
-                      AND heat_level = 'hot'
+                      AND heat_level IN ('ultra_hot', 'hot')
+                      AND COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                      AND COALESCE(owner_advertisement, 0) = 0
                     """,
                     (today_prefix,),
                 ).fetchone()["count"]
             )
             rows = connection.execute(
                 """
-                SELECT matched_keywords
+                SELECT matched_keywords, intent_reasons, feedback_label, owner_advertisement, lead_type
                 FROM leads
-                WHERE matched_keywords IS NOT NULL
+                WHERE COALESCE(status, 'new') NOT IN ('archived', 'not_relevant')
+                """
+            ).fetchall()
+            feedback_counts = connection.execute(
+                """
+                SELECT
+                    SUM(CASE WHEN feedback_type IN ('good_lead', 'closed_successfully') THEN 1 ELSE 0 END) AS positive_count,
+                    SUM(CASE WHEN feedback_type NOT IN ('good_lead', 'closed_successfully') THEN 1 ELSE 0 END) AS negative_count
+                FROM lead_feedback
+                """
+            ).fetchone()
+            rejection_rows = connection.execute(
+                """
+                SELECT feedback_type, COUNT(*) AS count
+                FROM lead_feedback
+                WHERE feedback_type NOT IN ('good_lead', 'closed_successfully')
+                GROUP BY feedback_type
+                ORDER BY count DESC, feedback_type ASC
+                LIMIT 8
+                """
+            ).fetchall()
+            converting_rows = connection.execute(
+                """
+                SELECT COALESCE(lead_type, 'guest_seeker') AS label, COUNT(*) AS count
+                FROM leads
+                WHERE status = 'closed'
+                GROUP BY COALESCE(lead_type, 'guest_seeker')
+                ORDER BY count DESC, label ASC
+                LIMIT 5
                 """
             ).fetchall()
 
         keyword_counter: dict[str, int] = {}
+        vip_counter: dict[str, int] = {}
+        owner_counter: dict[str, int] = {}
         for row in rows:
             for keyword in self.deserialize_keywords(row["matched_keywords"]):
                 keyword_counter[keyword] = keyword_counter.get(keyword, 0) + 1
+            if row["owner_advertisement"]:
+                for keyword in self.deserialize_keywords(row["intent_reasons"]):
+                    owner_counter[keyword] = owner_counter.get(keyword, 0) + 1
+            if row["lead_type"] in {"religious_couple", "romantic_couple", "family_small", "guest_seeker"}:
+                for keyword in self.deserialize_keywords(row["intent_reasons"]):
+                    vip_counter[keyword] = vip_counter.get(keyword, 0) + 1
         top_keywords = sorted(keyword_counter.items(), key=lambda item: (-item[1], item[0]))[:8]
+        top_vip_patterns = sorted(vip_counter.items(), key=lambda item: (-item[1], item[0]))[:6]
+        top_owner_patterns = sorted(owner_counter.items(), key=lambda item: (-item[1], item[0]))[:6]
 
         return {
             "best_group_by_hot_leads": dict(best_group) if best_group else None,
@@ -1001,6 +1346,12 @@ class LeadStorage:
             "top_matched_keywords": top_keywords,
             "leads_found_today": today_count,
             "hot_leads_today": hot_today,
+            "total_positive_feedback": int(feedback_counts["positive_count"] or 0) if feedback_counts else 0,
+            "total_negative_feedback": int(feedback_counts["negative_count"] or 0) if feedback_counts else 0,
+            "common_rejection_reasons": [dict(row) for row in rejection_rows],
+            "top_vip_patterns": top_vip_patterns,
+            "most_common_owner_ad_patterns": top_owner_patterns,
+            "best_converting_lead_types": [dict(row) for row in converting_rows],
         }
 
     def group_performance(self) -> list[dict[str, Any]]:
@@ -1011,17 +1362,33 @@ class LeadStorage:
                     COALESCE(group_name, group_url, 'לא מזוהה') AS group_label,
                     group_url,
                     COUNT(*) AS total_leads,
-                    SUM(CASE WHEN heat_level = 'hot' THEN 1 ELSE 0 END) AS hot_leads,
+                    SUM(CASE WHEN heat_level IN ('ultra_hot', 'hot') THEN 1 ELSE 0 END) AS hot_leads,
                     SUM(CASE WHEN heat_level = 'warm' THEN 1 ELSE 0 END) AS warm_leads,
                     SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed_leads,
                     SUM(CASE WHEN status IN ('contacted', 'waiting_reply') THEN 1 ELSE 0 END) AS contacted_leads,
                     MAX(created_at) AS last_lead_time
                 FROM leads
+                WHERE COALESCE(status, 'new') != 'archived'
                 GROUP BY COALESCE(group_name, group_url, 'לא מזוהה'), group_url
                 ORDER BY total_leads DESC, hot_leads DESC, last_lead_time DESC
                 """
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def bulk_update_lead_status(self, lead_ids: list[int], status: str) -> None:
+        if status not in ALLOWED_LEAD_STATUSES or not lead_ids:
+            return
+        placeholders = ", ".join(["?"] * len(lead_ids))
+        now = utc_now_iso()
+        with self._connect() as connection:
+            connection.execute(
+                f"""
+                UPDATE leads
+                SET status = ?, updated_at = ?
+                WHERE id IN ({placeholders})
+                """,
+                [status, now, *lead_ids],
+            )
 
     def log_event(self, lead_id: int, event_type: str, event_text: str | None = None) -> None:
         if event_type not in ALLOWED_EVENT_TYPES:
@@ -1056,16 +1423,17 @@ class LeadStorage:
         now = utc_now_iso()
         with self._connect() as connection:
             current = connection.execute(
-                "SELECT status FROM leads WHERE id = ? LIMIT 1",
+                "SELECT status, last_contacted_at FROM leads WHERE id = ? LIMIT 1",
                 (lead_id,),
             ).fetchone()
+            last_contacted_at = now if status == "contacted" else (current["last_contacted_at"] if current else None)
             connection.execute(
                 """
                 UPDATE leads
-                SET status = ?, updated_at = ?
+                SET status = ?, updated_at = ?, last_contacted_at = ?
                 WHERE id = ?
                 """,
-                (status, now, lead_id),
+                (status, now, last_contacted_at, lead_id),
             )
             previous = current["status"] if current else None
             event_text = f"Status changed from {previous or '-'} to {status}."
@@ -1097,12 +1465,89 @@ class LeadStorage:
                 (lead_id, now, "Lead notes updated."),
             )
 
+    def add_lead_feedback(
+        self,
+        lead_id: int,
+        feedback_type: str,
+        feedback_reason: str | None = None,
+    ) -> None:
+        if feedback_type not in ALLOWED_FEEDBACK_TYPES:
+            raise ValueError(f"Unsupported feedback: {feedback_type}")
+        now = utc_now_iso()
+        with self._connect() as connection:
+            lead_row = connection.execute(
+                "SELECT * FROM leads WHERE id = ? LIMIT 1",
+                (lead_id,),
+            ).fetchone()
+            if not lead_row:
+                return
+            lead_snapshot = self._row_to_dict(lead_row) or {}
+            scores_snapshot = {
+                "keyword_score": lead_snapshot.get("keyword_score"),
+                "intent_score": lead_snapshot.get("intent_score"),
+                "fit_score": lead_snapshot.get("fit_score"),
+                "heat_score": lead_snapshot.get("heat_score"),
+                "conversion_score": lead_snapshot.get("conversion_score"),
+                "vibe_score": lead_snapshot.get("vibe_score"),
+                "ai_score": lead_snapshot.get("ai_score"),
+            }
+            feedback_label = "good" if feedback_type in {"good_lead", "closed_successfully"} else "bad"
+            connection.execute(
+                """
+                UPDATE leads
+                SET feedback_label = ?, feedback_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (feedback_label, now, now, lead_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO lead_feedback (
+                    lead_id, created_at, feedback_type, feedback_reason, original_scores_json, lead_snapshot_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lead_id,
+                    now,
+                    feedback_type,
+                    feedback_reason,
+                    json.dumps(scores_snapshot, ensure_ascii=False),
+                    json.dumps(lead_snapshot, ensure_ascii=False),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO lead_events (lead_id, created_at, event_type, event_text)
+                VALUES (?, ?, 'lead_updated', ?)
+                """,
+                (lead_id, now, f"Feedback recorded: {feedback_type}."),
+            )
+
+    def update_lead_feedback(self, lead_id: int, feedback_label: str) -> None:
+        mapping = {"good": "good_lead", "bad": "bad_lead"}
+        if feedback_label not in mapping:
+            raise ValueError(f"Unsupported feedback: {feedback_label}")
+        self.add_lead_feedback(lead_id, mapping[feedback_label])
+
     def _row_to_dict(self, row: sqlite3.Row | None) -> dict[str, Any] | None:
         if row is None:
             return None
         result = dict(row)
         result["matched_keywords_list"] = self.deserialize_keywords(result.get("matched_keywords"))
         result["bad_fit_reasons_list"] = self.deserialize_keywords(result.get("bad_fit_reasons"))
+        result["intent_reasons_list"] = self.deserialize_keywords(result.get("intent_reasons"))
+        result["urgency_reasons_list"] = self.deserialize_keywords(result.get("urgency_reasons"))
+        result["pet_friendly_requested"] = bool(result.get("pet_friendly_requested"))
+        result["religious_signal"] = bool(result.get("religious_signal"))
+        result["romantic_signal"] = bool(result.get("romantic_signal"))
+        result["family_signal"] = bool(result.get("family_signal"))
+        result["privacy_signal"] = bool(result.get("privacy_signal"))
+        result["urgency_signal"] = bool(result.get("urgency_signal"))
+        result["pet_request"] = bool(result.get("pet_request"))
+        result["vip_match"] = bool(result.get("vip_match"))
+        result["owner_advertisement"] = bool(result.get("owner_advertisement"))
+        result["budget_sensitive"] = bool(result.get("budget_sensitive"))
         return result
 
 

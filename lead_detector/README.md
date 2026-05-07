@@ -1,6 +1,6 @@
 # Facebook Group Guest Lead Detector
 
-This project scans one or more Facebook groups using an existing logged-in browser storage state, scores recent posts with keyword rules, filters out owners/advertisers, saves relevant leads into SQLite, sends only relevant guest leads to Telegram for manual review, and provides a small local dashboard for lead management.
+This project scans one or more Facebook groups using an existing logged-in browser storage state, detects real guest intent, qualifies fit for Royal Water Villa specifically, saves leads into SQLite, sends only review-worthy alerts to Telegram, and provides a local command center for manual lead management.
 
 It is designed for Royal Water Villa lead monitoring, not outreach automation.
 
@@ -13,13 +13,15 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - Tries to extract from likely post-body containers instead of the full Facebook card when possible.
 - Normalizes Facebook post URLs by removing tracking query parameters and fragments before using them.
 - Cleans extracted text to remove common Facebook UI garbage before matching or alerting.
-- Scores posts with guest-intent rules and rejects owner/advertiser wording.
+- Detects guest intent even when people write naturally and do not use exact `צימר` phrasing.
+- Scores each lead across multiple dimensions: intent, fit, heat, conversion potential, and emotional vibe.
+- Rejects or strongly downgrades pets, parties, events, loud groups, cheap-only requests, and owner/advertiser wording.
 - Can optionally run AI scoring after keyword filtering for higher-precision lead review.
 - Stores normalized post keys, normalized URLs, and text hashes in SQLite to avoid duplicate alerts across all groups globally.
 - Stores relevant leads in a real `leads` table with status, notes, AI reason, and suggested reply fields.
-- Adds a lead-intelligence layer with guest type, urgency, area fit, heat level, fit score, and manual reply suggestions.
+- Adds a lead-intelligence layer with guest type, urgency, religious/romantic/family signals, area flexibility, VIP match, fit score, heat level, conversion score, vibe score, and manual reply suggestions.
 - Includes a local Flask dashboard for reviewing and managing leads manually.
-- Sends only relevant leads with score `>= 5` to Telegram.
+- Sends only relevant non-rejected leads to Telegram for manual review.
 - Continues scanning remaining groups even if one group fails.
 
 ## Project files
@@ -30,6 +32,7 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - `storage.py`: SQLite dedupe store and real leads database helpers
 - `reply_suggestions.py`: Hebrew reply suggestion generation with AI/template fallback
 - `lead_intelligence.py`: smart lead qualification with AI/rule-based fallback
+- `intent_patterns.py`: natural-language Hebrew intent detection phrases and signal groups
 - `config.py`: environment-driven settings and logging
 - `create_facebook_state.py`: helper script to save a logged-in Facebook session state
 - `dashboard.py`: local Flask dashboard
@@ -129,6 +132,8 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    Main dashboard routes:
 
    - `http://127.0.0.1:5000/leads` - main Lead Command Center live feed
+   - `http://127.0.0.1:5000/archived` - archived leads
+   - `http://127.0.0.1:5000/rejected` - rejected leads
    - `http://127.0.0.1:5000/scans` - local Scan Control Center
    - `http://127.0.0.1:5000/insights` - local analytics and AI insights
    - `http://127.0.0.1:5000/groups` - Facebook group performance view
@@ -152,6 +157,8 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 ## Lead management
 
 - Relevant leads are saved into the SQLite `leads` table.
+- Leads that look like real accommodation requests but are a bad fit for Royal Water Villa can still be saved locally with `heat_level=reject` and `status=not_relevant` for review, without sending Telegram alerts.
+- Archived and rejected leads are hidden from the default inbox and excluded from KPI counts by default.
 - Supported lead statuses:
   - `new`
   - `contacted`
@@ -160,18 +167,90 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
   - `closed`
   - `archived`
 - The dashboard supports:
-  - KPI cards for total, hot, warm, new, contacted, closed, rejected, and today's leads
+  - KPI cards for total, hot, warm, new, contacted, closed, rejected, archived, and today's leads
   - starting local scans directly from the dashboard without exposing the app publicly
   - scan status tracking, group-level scan progress, and recent scan logs
-  - a live lead feed with quick actions for contacted, waiting reply, closed, not relevant, and archive
-  - filtering by status, heat level, guest type, urgency, requested area, AI category, and free-text search
-  - sorting by newest, fit score, heat level, and urgency
-  - a lead detail page with AI fields, suggested replies, internal notes, and activity timeline
+  - a smart priority inbox that focuses on ULTRA HOT, HOT, high-fit, and recent leads
+  - a live lead feed with a cleaner action bar for copy reply, open Facebook post, contacted, not relevant, archive, and learning feedback
+  - filtering by status, heat level, guest type, urgency, requested area, lead type, AI category, owner ads, romantic/religious/family signals, budget sensitivity, include archived, include rejected, and free-text search
+  - sorting by priority inbox, newest, fit score, conversion score, heat level, and urgency
+  - a lead detail page with AI fields, intent reasons, urgency reasons, suggested replies, internal notes, activity timeline, and manual learning feedback
   - a local analytics page and a group performance page
   - copying suggested replies, follow-ups, and date/price questions for manual outreach only
+  - follow-up recommendation for contacted leads after `FOLLOWUP_AFTER_HOURS`
+
+## Royal Water Villa Lead Brain
+
+The system now thinks like Tomer, not like a simple keyword list.
+
+For each lead it estimates:
+
+- `intent_score`: how likely this is a real accommodation request
+- `fit_score`: how well the request matches Royal Water Villa specifically
+- `heat_score`: urgency and time sensitivity
+- `conversion_score`: realistic chance to close the lead
+- `vibe_score`: romantic / quiet / private / pastoral fit
+
+Additional extracted fields include:
+
+- `lead_type`
+- `guest_type`
+- `group_size_estimate`
+- `religious_signal`
+- `romantic_signal`
+- `family_signal`
+- `privacy_signal`
+- `urgency_signal`
+- `budget_signal`
+- `pet_request`
+- `preferred_area`
+- `required_area`
+- `flexibility_level`
+- `pool_requirement_strength`
+- `emotional_vibe`
+- `fit_reason_he`
+- `reject_reason_he`
+- `conversion_reason_he`
+- `vip_match`
+
+Special business rules:
+
+- Pets are not allowed, so dog/cat/pet-friendly requests are rejected as a fit for Royal Water Villa.
+- Religious / modesty / full-privacy language gets a strong positive boost.
+- Romantic, quiet, private-pool, and “לנקות את הראש” style wording upgrades fit and vibe.
+- Large groups, parties, birthdays, events, BBQ-only requests, Eilat-only, and north-only requests are rejected or strongly downgraded.
+- Short posts are not punished if they show strong buyer intent.
+- Strong VIP matches are highlighted as `👑 PERFECT MATCH`.
+
+## Learning feedback
+
+The dashboard stores structured feedback in a dedicated `lead_feedback` table so the system can learn from Tomer’s actions.
+
+Supported feedback types:
+
+- `good_lead`
+- `bad_lead`
+- `closed_successfully`
+- `irrelevant`
+- `too_expensive`
+- `too_large`
+- `pets`
+- `bad_location`
+- `spam`
+- `owner_ad`
+
+Analytics now include:
+
+- total positive feedback
+- total negative feedback
+- common rejection reasons
+- VIP lead patterns
+- owner-ad patterns
+- successful keywords/signals
 
 ## Heat levels
 
+- `ultra_hot`: exceptional fit, often urgent, often religious/romantic/private-pool heavy
 - `hot`: strong fit for Royal Water Villa, usually urgent and highly relevant
 - `warm`: good lead with partial fit or less urgency
 - `cold`: weak fit or incomplete signal, worth reviewing selectively
@@ -196,6 +275,20 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
 - `owner / advertiser wording`: rejected immediately
 
 Default keyword threshold is controlled by `MIN_KEYWORD_SCORE` and currently defaults to `4`.
+
+Natural-language intent matching also looks for phrases such as:
+
+- `מחפש מקום`
+- `מחפשת מקום`
+- `מחפשים מקום`
+- `רק לשים את הראש`
+- `מקום רומנטי`
+- `מקום שקט`
+- `לילה אחד`
+- `ממחר`
+- `חופשה זוגית`
+- `דירת נופש`
+- `לנקות את הראש`
 
 ## AI scoring
 
@@ -225,6 +318,16 @@ Supported AI categories:
 - `urgent_today`
 - `location_match`
 - `not_relevant`
+
+The local lead-intelligence layer also classifies leads into business-facing types such as:
+
+- `guest_seeker`
+- `owner_advertiser`
+- `event_seeker`
+- `romantic_couple`
+- `religious_couple`
+- `family_small`
+- `budget_sensitive`
 
 ## URL normalization and dedupe
 
@@ -290,42 +393,30 @@ CLEAN:
 Lead ID: 123
 סטטוס: new
 
-רמת חום: hot
-ציון התאמה: 9
-סוג אורח: couple_with_kids
-דחיפות: weekend
-אזור: rehovot_area
-כוונת בריכה: private_pool
+🔥 ULTRA HOT / HOT / WARM / COLD
 
-רמת התאמה: גבוהה / בינונית
-ניקוד מילים: X
-ניקוד AI: X/10
-קטגוריה: couple_with_kids
+Intent Score: X
+Fit Score: X
+Heat Score: X
+Conversion Score: X
+Vibe Score: X
 
-סיבת התאמה:
-[reason_he]
+למה זוהה כליד:
+...
+
+למה מתאים ל-Royal Water Villa:
+...
 
 הצעת תגובה:
-[suggested_reply_he]
-
-התאמות:
-[keywords]
-
-תוכן:
-[post text]
-
-כותב:
-[author if available]
-
-קבוצה:
-[group name if available]
-
-קישור קבוצה:
-[group URL]
-
-קישור:
-[post URL]
+...
 ```
+
+## Safety
+
+- Never commit `.env`, `facebook_state.json`, `.db`, `.sqlite`, or `.venv`.
+- Do not expose the dashboard publicly.
+- The system does not automatically message Facebook users.
+- It only detects, qualifies, ranks, and suggests manual replies.
 
 ## Multi-group scanning
 
@@ -366,6 +457,7 @@ Group B -> scanned=X matched=Y alerts=Z
 - The system only alerts and suggests replies. It does not automatically message users.
 - Suggested replies are for manual outreach only.
 - `facebook_state.json`, `.env`, `.db`, and `.venv` must stay local and must not be committed.
+- `FOLLOWUP_AFTER_HOURS` controls when the dashboard shows `🔔 Follow-up recommended` for contacted leads.
 
 ## Operational notes
 

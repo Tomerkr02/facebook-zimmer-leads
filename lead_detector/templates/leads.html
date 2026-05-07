@@ -18,6 +18,7 @@
       <div class="stat-card"><strong>{{ stats.contacted }}</strong><span>נוצר קשר</span></div>
       <div class="stat-card"><strong>{{ stats.closed }}</strong><span>נסגרו</span></div>
       <div class="stat-card reject"><strong>{{ stats.rejected }}</strong><span>נדחו / לא רלוונטיים</span></div>
+      <div class="stat-card"><strong>{{ stats.archived }}</strong><span>בארכיון</span></div>
       <div class="stat-card"><strong>{{ stats.today_leads }}</strong><span>לידים היום</span></div>
     </div>
   </article>
@@ -150,6 +151,23 @@
       </select>
     </label>
     <label>
+      Lead Type
+      <select name="lead_type">
+        <option value="">הכל</option>
+        {% for item in lead_types %}
+        <option value="{{ item }}" {% if filters.lead_type == item %}selected{% endif %}>{{ item|lead_type_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="check-option"><input type="checkbox" name="religious_only" value="1" {% if filters.religious_only %}checked{% endif %}> דתיים</label>
+    <label class="check-option"><input type="checkbox" name="romantic_only" value="1" {% if filters.romantic_only %}checked{% endif %}> רומנטי</label>
+    <label class="check-option"><input type="checkbox" name="family_only" value="1" {% if filters.family_only %}checked{% endif %}> משפחה</label>
+    <label class="check-option"><input type="checkbox" name="owner_ads_only" value="1" {% if filters.owner_ads_only %}checked{% endif %}> פרסומי בעלי מקומות</label>
+    <label class="check-option"><input type="checkbox" name="rejected_only" value="1" {% if filters.rejected_only %}checked{% endif %}> רק דחויים</label>
+    <label class="check-option"><input type="checkbox" name="budget_sensitive_only" value="1" {% if filters.budget_sensitive_only %}checked{% endif %}> רגישי מחיר</label>
+    <label class="check-option"><input type="checkbox" name="include_archived" value="1" {% if filters.include_archived %}checked{% endif %}> כלול ארכיון</label>
+    <label class="check-option"><input type="checkbox" name="include_rejected" value="1" {% if filters.include_rejected %}checked{% endif %}> כלול דחויים</label>
+    <label>
       מיון
       <select name="sort">
         {% for value, label in sort_options.items() %}
@@ -172,7 +190,7 @@
   <div class="panel-head">
     <div>
       <p class="eyebrow">Live Lead Feed</p>
-      <h2>לידים אחרונים</h2>
+      <h2>{{ page_title or "לידים אחרונים" }}</h2>
     </div>
     <div class="live-badges">
       <span class="live-pill">חמים: {{ stats.hot_leads }}</span>
@@ -183,7 +201,7 @@
   {% if leads %}
   <div class="lead-grid">
     {% for lead in leads %}
-    <article class="lead-card">
+    <article class="lead-card{% if lead.perfect_match %} lead-card-vip{% endif %}">
       <div class="lead-card-head">
         <div>
           <div class="lead-meta">Lead #{{ lead.id }} · {{ lead.created_at }}</div>
@@ -191,6 +209,7 @@
           <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
         </div>
         <div class="badge-stack">
+          {% if lead.perfect_match %}<span class="vip-pill">👑 PERFECT MATCH</span>{% endif %}
           <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
           <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
         </div>
@@ -199,13 +218,44 @@
       <div class="metric-row">
         <span>ציון התאמה <strong>{{ lead.fit_score if lead.fit_score is not none else "-" }}</strong></span>
         <span>מילים <strong>{{ lead.keyword_score }}</strong></span>
+        <span>כוונה <strong>{{ lead.intent_score if lead.intent_score is not none else "-" }}</strong></span>
+        <span>חום <strong>{{ lead.heat_score if lead.heat_score is not none else "-" }}</strong></span>
+        <span>סגירה <strong>{{ lead.conversion_score if lead.conversion_score is not none else "-" }}</strong></span>
+        <span>וייב <strong>{{ lead.vibe_score if lead.vibe_score is not none else "-" }}</strong></span>
         <span>AI <strong>{{ lead.ai_score if lead.ai_score is not none else "-" }}</strong></span>
       </div>
       <div class="metric-row">
+        <span>{{ (lead.lead_type or "guest_seeker")|lead_type_label }}</span>
         <span>{{ (lead.guest_type or "unknown")|guest_type_label }}</span>
         <span>{{ (lead.urgency or "unknown")|urgency_label }}</span>
         <span>{{ (lead.pool_intent or "unknown")|pool_label }}</span>
+        {% if lead.pet_friendly_requested %}<span>🐾 עם כלב/ים</span>{% endif %}
       </div>
+      <div class="keyword-list">
+        {% if lead.vip_match %}<span class="keyword">VIP</span>{% endif %}
+        {% if lead.religious_signal %}<span class="keyword">דתי</span>{% endif %}
+        {% if lead.romantic_signal %}<span class="keyword">רומנטי</span>{% endif %}
+        {% if lead.family_signal %}<span class="keyword">משפחה</span>{% endif %}
+        {% if lead.owner_advertisement %}<span class="keyword keyword-negative">Owner Ad</span>{% endif %}
+        {% if lead.pet_request %}<span class="keyword keyword-negative">Pets Reject</span>{% endif %}
+        {% if lead.followup_recommended %}<span class="keyword keyword-attention">🔔 Follow-up recommended</span>{% endif %}
+      </div>
+
+      {% if lead.intent_reasons_list %}
+      <div class="keyword-list">
+        {% for item in lead.intent_reasons_list[:4] %}
+        <span class="keyword">{{ item }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if lead.urgency_reasons_list %}
+      <div class="keyword-list">
+        {% for item in lead.urgency_reasons_list[:3] %}
+        <span class="keyword">{{ item }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
 
       <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:320] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 320 %}...{% endif %}</p>
 
@@ -222,22 +272,69 @@
         </div>
         <p>{{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "אין הצעה זמינה")[:190] }}{% if (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|length > 190 %}...{% endif %}</p>
       </section>
+      <section class="reply-block">
+        <strong>למה המערכת חושבת שזה ליד טוב</strong>
+        <p>{{ lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "-" }}</p>
+      </section>
+      <section class="reply-block">
+        <strong>למה זה ליד טוב</strong>
+        <div class="check-list">
+          {% for item in lead.intent_reasons_list[:6] %}
+          <div>✔ {{ item }}</div>
+          {% else %}
+          <div class="muted">אין פירוט נוסף</div>
+          {% endfor %}
+        </div>
+      </section>
+      {% if lead.bad_fit_reasons_list %}
+      <section class="reply-block">
+        <strong>למה זה לא מתאים</strong>
+        <div class="check-list reject-list">
+          {% for item in lead.bad_fit_reasons_list[:6] %}
+          <div>✖ {{ item }}</div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
-      <div class="action-row">
+      <div class="action-bar">
+        <button
+          type="button"
+          class="ghost-button"
+          onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
+        >📋 Copy reply</button>
         {% if lead.post_url %}
-        <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פתיחת פוסט</a>
+        <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">💬 Open Facebook post</a>
         {% endif %}
-        <a class="button-link secondary" href="{{ url_for('lead_detail', lead_id=lead.id) }}">פרטי ליד</a>
-      </div>
-
-      <div class="quick-status-grid">
-        {% for status in ['contacted', 'waiting_reply', 'closed', 'not_relevant', 'archived'] %}
         <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
-          <input type="hidden" name="status" value="{{ status }}">
+          <input type="hidden" name="status" value="contacted">
           <input type="hidden" name="next" value="{{ request.full_path }}">
-          <button type="submit" class="ghost-button">{{ status|status_label }}</button>
+          <button type="submit" class="ghost-button">✅ Contacted</button>
         </form>
-        {% endfor %}
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="not_relevant">
+          <input type="hidden" name="feedback_reason" value="{% if lead.pet_request %}pets{% elif lead.owner_advertisement %}owner_ad{% else %}irrelevant{% endif %}">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button type="submit" class="ghost-button">❌ Not relevant</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="archived">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button type="submit" class="ghost-button">📦 Archive</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="feedback" value="bad_lead">
+          <input type="hidden" name="feedback_reason" value="bad_lead">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button type="submit" class="ghost-button">👎 Bad lead</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="feedback" value="good_lead">
+          <input type="hidden" name="feedback_reason" value="good_lead">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button type="submit" class="ghost-button">👍 Good lead</button>
+        </form>
+        <a class="button-link secondary" href="{{ url_for('lead_detail', lead_id=lead.id) }}">פרטי ליד</a>
       </div>
     </article>
     {% endfor %}

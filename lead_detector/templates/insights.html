@@ -36,6 +36,14 @@
       <span>לידים חמים היום</span>
       <strong>{{ insights.hot_leads_today }}</strong>
     </article>
+    <article class="insight-card">
+      <span>פידבק חיובי</span>
+      <strong>{{ insights.total_positive_feedback }}</strong>
+    </article>
+    <article class="insight-card">
+      <span>פידבק שלילי</span>
+      <strong>{{ insights.total_negative_feedback }}</strong>
+    </article>
   </div>
 </section>
 
@@ -75,5 +83,89 @@
       {% endfor %}
     </div>
   </article>
+</section>
+
+<section class="dual-grid">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Learning</p>
+        <h2>סיבות דחייה נפוצות</h2>
+      </div>
+    </div>
+    <div class="keyword-list">
+      {% for item in insights.common_rejection_reasons %}
+      <span class="keyword keyword-negative">{{ feedback_labels.get(item.feedback_type, item.feedback_type) }} · {{ item.count }}</span>
+      {% else %}
+      <span class="muted">עדיין אין מספיק פידבק שלילי.</span>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">VIP Patterns</p>
+        <h2>דפוסי התאמה חזקים</h2>
+      </div>
+    </div>
+    <div class="keyword-list">
+      {% for keyword, count in insights.top_vip_patterns %}
+      <span class="keyword">👑 {{ keyword }} · {{ count }}</span>
+      {% else %}
+      <span class="muted">עדיין אין מספיק דפוסי VIP.</span>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="dual-grid">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Owner Ads</p>
+        <h2>דפוסי פרסום של בעלי מקומות</h2>
+      </div>
+    </div>
+    <div class="keyword-list">
+      {% for keyword, count in insights.most_common_owner_ad_patterns %}
+      <span class="keyword keyword-negative">{{ keyword }} · {{ count }}</span>
+      {% else %}
+      <span class="muted">עדיין אין מספיק דוגמאות לפרסומי בעלי מקומות.</span>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Signals</p>
+        <h2>אותות מצליחים</h2>
+      </div>
+    </div>
+    <div class="keyword-list">
+      {% for keyword, count in insights.top_matched_keywords[:6] %}
+      <span class="keyword">{{ keyword }} · {{ count }}</span>
+      {% else %}
+      <span class="muted">עדיין אין מספיק אותות.</span>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Conversion</p>
+      <h2>סוגי לידים שממירים הכי טוב</h2>
+    </div>
+  </div>
+  <div class="keyword-list">
+    {% for item in insights.best_converting_lead_types %}
+    <span class="keyword">{{ lead_type_labels.get(item.label, item.label) }} · {{ item.count }}</span>
+    {% else %}
+    <span class="muted">עדיין אין מספיק לידים סגורים לניתוח.</span>
+    {% endfor %}
+  </div>
 </section>
 {% endblock %}

@@ -10,6 +10,7 @@
         <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
       </div>
       <div class="badge-stack">
+        {% if lead.perfect_match %}<span class="vip-pill">👑 PERFECT MATCH</span>{% endif %}
         <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
         <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
       </div>
@@ -18,16 +19,36 @@
     <div class="detail-grid">
       <div><strong>עודכן:</strong> {{ lead.updated_at }}</div>
       <div><strong>ניקוד מילים:</strong> {{ lead.keyword_score }}</div>
+      <div><strong>ניקוד כוונה:</strong> {{ lead.intent_score if lead.intent_score is not none else "-" }}</div>
+      <div><strong>ניקוד חום:</strong> {{ lead.heat_score if lead.heat_score is not none else "-" }}</div>
+      <div><strong>ניקוד סגירה:</strong> {{ lead.conversion_score if lead.conversion_score is not none else "-" }}</div>
+      <div><strong>ניקוד וייב:</strong> {{ lead.vibe_score if lead.vibe_score is not none else "-" }}</div>
       <div><strong>ניקוד AI:</strong> {{ lead.ai_score if lead.ai_score is not none else "-" }}</div>
       <div><strong>קטגוריה:</strong> {{ lead.ai_category or "-" }}</div>
       <div><strong>ציון התאמה:</strong> {{ lead.fit_score if lead.fit_score is not none else "-" }}</div>
+      <div><strong>Lead Type:</strong> {{ (lead.lead_type or "guest_seeker")|lead_type_label }}</div>
       <div><strong>סוג אורח:</strong> {{ (lead.guest_type or "unknown")|guest_type_label }}</div>
       <div><strong>דחיפות:</strong> {{ (lead.urgency or "unknown")|urgency_label }}</div>
       <div><strong>אזור:</strong> {{ (lead.requested_area or "unknown")|area_label }}</div>
+      <div><strong>אזור מועדף:</strong> {{ lead.preferred_area or "-" }}</div>
+      <div><strong>אזור נדרש:</strong> {{ lead.required_area or "-" }}</div>
+      <div><strong>גמישות:</strong> {{ lead.flexibility_level or "-" }}</div>
       <div><strong>בריכה:</strong> {{ (lead.pool_intent or "unknown")|pool_label }}</div>
+      <div><strong>עוצמת דרישת בריכה:</strong> {{ lead.pool_requirement_strength or "-" }}</div>
       <div><strong>פרטיות:</strong> {{ lead.privacy_intent or "-" }}</div>
+      <div><strong>וייב רגשי:</strong> {{ lead.emotional_vibe or "-" }}</div>
       <div><strong>פעולה מומלצת:</strong> {{ lead.recommended_action or "-" }}</div>
+      <div><strong>VIP Match:</strong> {{ "כן" if lead.vip_match else "לא" }}</div>
+      <div><strong>Media Type:</strong> {{ lead.recommended_media_type or "-" }}</div>
+      <div><strong>Media Reason:</strong> {{ lead.recommended_media_reason or "-" }}</div>
+      <div><strong>דתי:</strong> {{ "כן" if lead.religious_signal else "לא" }}</div>
+      <div><strong>רומנטי:</strong> {{ "כן" if lead.romantic_signal else "לא" }}</div>
+      <div><strong>משפחה:</strong> {{ "כן" if lead.family_signal else "לא" }}</div>
+      <div><strong>Owner Ad:</strong> {{ "כן" if lead.owner_advertisement else "לא" }}</div>
+      <div><strong>Budget:</strong> {{ lead.budget_signal or "-" }}</div>
+      <div><strong>חיות מחמד:</strong> {{ "כן" if lead.pet_friendly_requested else "לא" }}</div>
       <div><strong>טלגרם:</strong> {{ "נשלח" if lead.sent_to_telegram else "לא נשלח" }}</div>
+      <div><strong>פולואפ:</strong> {{ "מומלץ" if lead.followup_recommended else "לא כרגע" }}</div>
     </div>
 
     <section class="content-block">
@@ -57,6 +78,59 @@
     </section>
 
     <section class="content-block">
+      <h3>למה המערכת חושבת שזה ליד טוב</h3>
+      <div class="text-box">{{ lead.ai_explanation_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>למה מתאים ל-Royal Water Villa</h3>
+      <div class="text-box">{{ lead.fit_reason_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>למה לא מתאים / דגלים אדומים</h3>
+      <div class="text-box">{{ lead.reject_reason_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>פוטנציאל סגירה</h3>
+      <div class="text-box">{{ lead.conversion_reason_he or "-" }}</div>
+    </section>
+
+    <section class="content-block">
+      <h3>סיבות כוונה</h3>
+      <div class="keyword-list">
+        {% for item in lead.intent_reasons_list %}
+        <span class="keyword">{{ item }}</span>
+        {% else %}
+        <span class="muted">אין</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-block">
+      <h3>למה זה ליד טוב</h3>
+      <div class="check-list">
+        {% for item in lead.intent_reasons_list %}
+        <div>✔ {{ item }}</div>
+        {% else %}
+        <div class="muted">אין</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-block">
+      <h3>סיבות דחיפות</h3>
+      <div class="keyword-list">
+        {% for item in lead.urgency_reasons_list %}
+        <span class="keyword">{{ item }}</span>
+        {% else %}
+        <span class="muted">אין</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="content-block">
       <h3>סיבות חוסר התאמה / סיכון</h3>
       <div class="keyword-list">
         {% for item in lead.bad_fit_reasons_list %}
@@ -66,6 +140,17 @@
         {% endfor %}
       </div>
     </section>
+
+    {% if lead.bad_fit_reasons_list %}
+    <section class="content-block">
+      <h3>למה זה לא מתאים</h3>
+      <div class="check-list reject-list">
+        {% for item in lead.bad_fit_reasons_list %}
+        <div>✖ {{ item }}</div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
 
     <section class="content-block">
       <div class="reply-head">
@@ -124,17 +209,49 @@
 
   <aside class="detail-side">
     <section class="panel content-block">
-      <h3>עדכון סטטוס</h3>
-      <div class="status-actions">
-        {% for status in ['new', 'contacted', 'waiting_reply', 'closed', 'not_relevant', 'archived'] %}
-        {% if status in statuses %}
-        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
-          <input type="hidden" name="status" value="{{ status }}">
-          <button type="submit">{{ status|status_label }}</button>
-        </form>
+      <h3>Action Bar</h3>
+      <div class="action-bar vertical">
+        <button
+          type="button"
+          class="ghost-button"
+          onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
+        >📋 Copy reply</button>
+        {% if lead.post_url %}
+        <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">💬 Open Facebook post</a>
         {% endif %}
-        {% endfor %}
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="contacted">
+          <button type="submit">✅ Contacted</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="not_relevant">
+          <input type="hidden" name="feedback_reason" value="{% if lead.pet_request %}pets{% elif lead.owner_advertisement %}owner_ad{% else %}irrelevant{% endif %}">
+          <button type="submit">❌ Not relevant</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="archived">
+          <button type="submit">📦 Archive</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="closed">
+          <button type="submit">🟢 Closed</button>
+        </form>
       </div>
+    </section>
+
+    <section class="panel content-block">
+      <h3>למידת מערכת</h3>
+      <div class="action-row">
+        <form method="post" action="{{ url_for('lead_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="feedback" value="good_lead">
+          <button type="submit">👍 Good lead</button>
+        </form>
+        <form method="post" action="{{ url_for('lead_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="feedback" value="bad_lead">
+          <button type="submit">👎 Bad lead</button>
+        </form>
+      </div>
+      <p class="muted">פידבק שמור: {{ lead.feedback_label or "עדיין אין" }}</p>
     </section>
 
     <section class="panel content-block">

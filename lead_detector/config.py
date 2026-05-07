@@ -47,6 +47,7 @@ class Settings:
     openai_api_key: str
     ai_min_score: int
     debug_matching: bool
+    followup_after_hours: int
     log_level: str
 
     @property
@@ -82,6 +83,7 @@ def load_settings() -> Settings:
         ai_min_score=int(os.getenv("AI_MIN_SCORE", "7")),
         debug_matching=os.getenv("DEBUG_MATCHING", "false").strip().lower()
         in {"1", "true", "yes"},
+        followup_after_hours=int(os.getenv("FOLLOWUP_AFTER_HOURS", "24")),
         log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
     )
 
