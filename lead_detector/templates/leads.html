@@ -1,104 +1,282 @@
 {% extends "base.html" %}
-{% block title %}לידים{% endblock %}
+{% block title %}Lead Command Center{% endblock %}
 {% block content %}
-<section class="panel">
-  <div class="stats-grid">
-    <div class="stat-card"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></div>
-    <div class="stat-card"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></div>
-    <div class="stat-card"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
-    <div class="stat-card"><strong>{{ stats.contacted }}</strong><span>נוצר קשר</span></div>
-    <div class="stat-card"><strong>{{ stats.closed }}</strong><span>נסגרו</span></div>
-    <div class="stat-card"><strong>{{ stats.conversion_rate_placeholder }}%</strong><span>המרה משוערת</span></div>
+<section class="hero-grid">
+  <article class="panel hero-panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Live Overview</p>
+        <h2>מרכז הפיקוד של הלידים</h2>
+      </div>
+      <div class="hero-note">המערכת מקומית בלבד. כל פנייה נשארת לבדיקה ידנית.</div>
+    </div>
+    <div class="stats-grid kpi-grid">
+      <div class="stat-card stat-strong"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></div>
+      <div class="stat-card hot"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></div>
+      <div class="stat-card warm"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
+      <div class="stat-card"><strong>{{ stats.new_leads }}</strong><span>חדשים</span></div>
+      <div class="stat-card"><strong>{{ stats.contacted }}</strong><span>נוצר קשר</span></div>
+      <div class="stat-card"><strong>{{ stats.closed }}</strong><span>נסגרו</span></div>
+      <div class="stat-card reject"><strong>{{ stats.rejected }}</strong><span>נדחו / לא רלוונטיים</span></div>
+      <div class="stat-card"><strong>{{ stats.today_leads }}</strong><span>לידים היום</span></div>
+    </div>
+  </article>
+
+  <aside class="panel insights-panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">AI Insights</p>
+        <h2>תמונת מצב מהירה</h2>
+      </div>
+    </div>
+    <div class="mini-insights">
+      <div class="mini-item">
+        <span>קבוצה מובילה</span>
+        <strong>{{ insights.best_group_by_hot_leads.label if insights.best_group_by_hot_leads else "אין מספיק נתונים" }}</strong>
+      </div>
+      <div class="mini-item">
+        <span>אזור מבוקש</span>
+        <strong>{{ (insights.most_common_requested_area.label if insights.most_common_requested_area else "unknown") | area_label }}</strong>
+      </div>
+      <div class="mini-item">
+        <span>סוג אורח מוביל</span>
+        <strong>{{ (insights.most_common_guest_type.label if insights.most_common_guest_type else "unknown") | guest_type_label }}</strong>
+      </div>
+      <div class="mini-item">
+        <span>דחיפות שכיחה</span>
+        <strong>{{ (insights.most_common_urgency.label if insights.most_common_urgency else "unknown") | urgency_label }}</strong>
+      </div>
+      <div class="mini-item">
+        <span>חמים היום</span>
+        <strong>{{ insights.hot_leads_today }}</strong>
+      </div>
+      <div class="mini-item">
+        <span>המרה משוערת</span>
+        <strong>{{ stats.conversion_rate_placeholder }}%</strong>
+      </div>
+    </div>
+  </aside>
+</section>
+
+<section class="panel scan-widget" id="scanWidget">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Scan Control</p>
+      <h2>מצב סריקה</h2>
+    </div>
+    <div class="live-badges">
+      <button type="button" class="button-link" onclick="startScan('/scans/start')">התחל סריקה</button>
+      <a class="button-link secondary" href="{{ url_for('scans_page') }}">מרכז סריקות</a>
+    </div>
+  </div>
+  <div id="scanWidgetBody">
+    {% if latest_scan %}
+    <div class="scan-summary-grid">
+      <div class="mini-item"><span>סטטוס</span><strong>{{ latest_scan.status }}</strong></div>
+      <div class="mini-item"><span>סריקה אחרונה</span><strong>{{ latest_scan.started_at or "-" }}</strong></div>
+      <div class="mini-item"><span>לידים שנשמרו</span><strong>{{ latest_scan.leads_saved or 0 }}</strong></div>
+      <div class="mini-item"><span>קבוצות שהושלמו</span><strong>{{ latest_scan.groups_done or 0 }}/{{ latest_scan.total_groups or 0 }}</strong></div>
+    </div>
+    {% else %}
+    <p class="muted">עדיין לא בוצעה סריקה מהמרכז המקומי.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="panel filter-panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Filter & Sort</p>
+      <h2>סינון הפיד</h2>
+    </div>
   </div>
   <form class="filters" method="get" action="{{ url_for('leads_page') }}">
     <label>
+      חיפוש חופשי
+      <input type="text" name="search" value="{{ filters.search }}" placeholder="טקסט פוסט, שם קבוצה, כותב...">
+    </label>
+    <label>
       סטטוס
       <select name="status">
-        <option value="" {% if not selected_status %}selected{% endif %}>הכל</option>
+        <option value="">הכל</option>
         {% for status in statuses %}
-        <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status }}</option>
+        <option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status|status_label }}</option>
         {% endfor %}
       </select>
     </label>
     <label>
       חום
       <select name="heat_level">
-        <option value="" {% if not selected_heat_level %}selected{% endif %}>הכל</option>
+        <option value="">הכל</option>
         {% for item in heat_levels %}
-        <option value="{{ item }}" {% if selected_heat_level == item %}selected{% endif %}>{{ item }}</option>
+        <option value="{{ item }}" {% if filters.heat_level == item %}selected{% endif %}>{{ heat_icons[item] }} {{ item|heat_label }}</option>
         {% endfor %}
       </select>
     </label>
     <label>
       סוג אורח
       <select name="guest_type">
-        <option value="" {% if not selected_guest_type %}selected{% endif %}>הכל</option>
-        {% for item in guest_types %}
-        <option value="{{ item }}" {% if selected_guest_type == item %}selected{% endif %}>{{ item }}</option>
+        <option value="">הכל</option>
+        {% for item in filter_options.guest_type or guest_types %}
+        <option value="{{ item }}" {% if filters.guest_type == item %}selected{% endif %}>{{ item|guest_type_label }}</option>
         {% endfor %}
       </select>
     </label>
     <label>
       דחיפות
       <select name="urgency">
-        <option value="" {% if not selected_urgency %}selected{% endif %}>הכל</option>
-        {% for item in urgencies %}
-        <option value="{{ item }}" {% if selected_urgency == item %}selected{% endif %}>{{ item }}</option>
+        <option value="">הכל</option>
+        {% for item in filter_options.urgency or urgencies %}
+        <option value="{{ item }}" {% if filters.urgency == item %}selected{% endif %}>{{ item|urgency_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      אזור מבוקש
+      <select name="requested_area">
+        <option value="">הכל</option>
+        {% for item in filter_options.requested_area %}
+        <option value="{{ item }}" {% if filters.requested_area == item %}selected{% endif %}>{{ item|area_label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      AI Category
+      <select name="ai_category">
+        <option value="">הכל</option>
+        {% for item in filter_options.ai_category %}
+        <option value="{{ item }}" {% if filters.ai_category == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      מיון
+      <select name="sort">
+        {% for value, label in sort_options.items() %}
+        <option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
     <label>
       כמות
-      <input type="number" name="limit" value="{{ limit }}" min="1" max="500">
+      <input type="number" name="limit" value="{{ filters.limit }}" min="1" max="500">
     </label>
-    <button type="submit">סינון</button>
+    <div class="filter-actions">
+      <button type="submit">הפעל סינון</button>
+      <a class="button-link secondary" href="{{ url_for('leads_page') }}">ניקוי</a>
+    </div>
   </form>
 </section>
 
-<section class="lead-grid">
-  {% for lead in leads %}
-  <article class="lead-card">
-    <div class="lead-card-head">
-      <div>
-        <div class="lead-meta">Lead #{{ lead.id }}</div>
-        <h2><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h2>
+<section class="panel feed-panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Live Lead Feed</p>
+      <h2>לידים אחרונים</h2>
+    </div>
+    <div class="live-badges">
+      <span class="live-pill">חמים: {{ stats.hot_leads }}</span>
+      <span class="live-pill">חדשים: {{ stats.new_leads }}</span>
+    </div>
+  </div>
+
+  {% if leads %}
+  <div class="lead-grid">
+    {% for lead in leads %}
+    <article class="lead-card">
+      <div class="lead-card-head">
+        <div>
+          <div class="lead-meta">Lead #{{ lead.id }} · {{ lead.created_at }}</div>
+          <h3><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h3>
+          <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
+        </div>
+        <div class="badge-stack">
+          <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
+          <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
+        </div>
       </div>
-      <div class="badge-stack">
-        <span class="heat heat-{{ lead.heat_level or 'cold' }}">
-          {% if lead.heat_level == 'hot' %}🔥{% elif lead.heat_level == 'warm' %}🟡{% elif lead.heat_level == 'reject' %}⛔{% else %}❄️{% endif %}
-          {{ lead.heat_level or "cold" }}
-        </span>
-        <span class="status status-{{ lead.status }}">{{ lead.status }}</span>
+
+      <div class="metric-row">
+        <span>ציון התאמה <strong>{{ lead.fit_score if lead.fit_score is not none else "-" }}</strong></span>
+        <span>מילים <strong>{{ lead.keyword_score }}</strong></span>
+        <span>AI <strong>{{ lead.ai_score if lead.ai_score is not none else "-" }}</strong></span>
       </div>
-    </div>
-    <div class="score-row">
-      <span>מילים: {{ lead.keyword_score }}</span>
-      <span>AI: {{ lead.ai_score if lead.ai_score is not none else "-" }}</span>
-      <span>ציון התאמה: {{ lead.fit_score if lead.fit_score is not none else "-" }}</span>
-      <span>סוג: {{ lead.guest_type or "-" }}</span>
-      <span>דחיפות: {{ lead.urgency or "-" }}</span>
-      <span>אזור: {{ lead.requested_area or "-" }}</span>
-    </div>
-    <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:260] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 260 %}...{% endif %}</p>
-    <div class="lead-info">
-      <span>נוצר: {{ lead.created_at }}</span>
-      <span>כותב: {{ lead.author or "לא זמין" }}</span>
-    </div>
-    <div class="lead-info">
-      <span>קבוצה: <a href="{{ lead.group_url }}" target="_blank" rel="noopener">מעבר לקבוצה</a></span>
-      {% if lead.post_url %}
-      <span><a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פוסט</a></span>
-      {% endif %}
-    </div>
-    <div class="reply-preview">
-      <strong>תגובה ראשונה:</strong>
-      <p>{{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "אין הצעה")[:180] }}{% if (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|length > 180 %}...{% endif %}</p>
-    </div>
-  </article>
+      <div class="metric-row">
+        <span>{{ (lead.guest_type or "unknown")|guest_type_label }}</span>
+        <span>{{ (lead.urgency or "unknown")|urgency_label }}</span>
+        <span>{{ (lead.pool_intent or "unknown")|pool_label }}</span>
+      </div>
+
+      <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:320] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 320 %}...{% endif %}</p>
+
+      <section class="reply-block">
+        <div class="reply-head">
+          <strong>תגובה ראשונה מוצעת</strong>
+          <button
+            type="button"
+            class="copy-button"
+            onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
+          >
+            העתקה
+          </button>
+        </div>
+        <p>{{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "אין הצעה זמינה")[:190] }}{% if (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|length > 190 %}...{% endif %}</p>
+      </section>
+
+      <div class="action-row">
+        {% if lead.post_url %}
+        <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פתיחת פוסט</a>
+        {% endif %}
+        <a class="button-link secondary" href="{{ url_for('lead_detail', lead_id=lead.id) }}">פרטי ליד</a>
+      </div>
+
+      <div class="quick-status-grid">
+        {% for status in ['contacted', 'waiting_reply', 'closed', 'not_relevant', 'archived'] %}
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="{{ status }}">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button type="submit" class="ghost-button">{{ status|status_label }}</button>
+        </form>
+        {% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
   {% else %}
   <section class="empty-state">
-    <p>אין לידים להצגה.</p>
+    <h3>עדיין אין לידים</h3>
+    <p>תריץ <code>python scraper.py --rescan</code> כדי להתחיל לסרוק קבוצות ולאכלס את מרכז הפיקוד.</p>
   </section>
-  {% endfor %}
+  {% endif %}
 </section>
+<script>
+async function startScan(endpoint) {
+  const response = await fetch(endpoint, { method: 'POST' });
+  const data = await response.json();
+  alert(data.message);
+  await refreshScanWidget();
+}
+
+async function refreshScanWidget() {
+  const response = await fetch('/scans/status');
+  const data = await response.json();
+  const target = document.getElementById('scanWidgetBody');
+  if (!target) return;
+  const scan = data.scan;
+  if (!scan) {
+    target.innerHTML = '<p class="muted">עדיין לא בוצעה סריקה מהמרכז המקומי.</p>';
+    return;
+  }
+  target.innerHTML = `
+    <div class="scan-summary-grid">
+      <div class="mini-item"><span>סטטוס</span><strong>${scan.status || '-'}</strong></div>
+      <div class="mini-item"><span>סריקה אחרונה</span><strong>${scan.started_at || '-'}</strong></div>
+      <div class="mini-item"><span>לידים שנשמרו</span><strong>${scan.leads_saved || 0}</strong></div>
+      <div class="mini-item"><span>קבוצות שהושלמו</span><strong>${scan.groups_done || 0}/${scan.total_groups || 0}</strong></div>
+    </div>
+  `;
+}
+
+setInterval(refreshScanWidget, 3000);
+</script>
 {% endblock %}

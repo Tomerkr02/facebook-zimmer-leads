@@ -1,0 +1,888 @@
+GROUP: צימרים בדקה ה90
+group_url: https://www.facebook.com/groups/663003307075552
+page_title: (7) צימרים בדקה ה90 | Facebook
+current_url: https://www.facebook.com/groups/663003307075552
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 20
+text_blocks_extracted: 10
+cleaned_posts: 10
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 5
+telegram_sent: 0
+first_5_raw_text_previews:
+  - @אחוזת נוף גלילי ביבנאל אצל Michal Maman
+  - מחפש שתיי צימרים לסוף שבוע הבא חמישי שישי שבת יציאה בצהריים שמכבלים כלבים לפנות בבקשה מחיר ואיפה זה 0543207242
+  - @אחוזת נוף גלילי ביבנאל אצל Michal Maman
+  - מחפש שתיי צימרים לסוף שבוע הבא חמישי שישי שבת יציאה בצהריים שמכבלים כלבים לפנות בבקשה מחיר ואיפה זה 0543207242
+  - @אחוזת נוף גלילי ביבנאל אצל Michal Maman
+first_5_cleaned_text_previews:
+  - @אחוזת נוף גלילי ביבנאל אצל Michal Maman
+  - מחפש שתיי צימרים לסוף שבוע הבא חמישי שישי שבת יציאה בצהריים שמכבלים כלבים לפנות בבקשה מחיר ואיפה זה 0543207242
+  - @אחוזת נוף גלילי ביבנאל אצל Michal Maman
+  - מחפש שתיי צימרים לסוף שבוע הבא חמישי שישי שבת יציאה בצהריים שמכבלים כלבים לפנות בבקשה מחיר ואיפה זה 0543207242
+  - @אחוזת נוף גלילי ביבנאל אצל Michal Maman
+first_5_post_urls:
+  - https://www.facebook.com/groups/663003307075552/user/61570336299468
+  - https://www.facebook.com/groups/663003307075552/user/100004885603803
+  - https://www.facebook.com/groups/663003307075552/user/61570336299468
+  - https://www.facebook.com/groups/663003307075552/user/100004885603803
+  - https://www.facebook.com/groups/663003307075552/user/61570336299468
+
+GROUP: 🏞️ צימרים וילות אטרקציות בצפון
+group_url: https://www.facebook.com/share/g/1B4ghkdJsV/
+page_title: (7) 🏞️ צימרים וילות אטרקציות בצפון | Facebook
+current_url: https://www.facebook.com/groups/zimmer.north/?rdid=UnJTCNBeQcjtoHev&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2Fg%2F1B4ghkdJsV%2F
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+first_5_cleaned_text_previews:
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+  - Available this weekend Luxury Villa in Puria Neve Oved near Tiberias and the Kinneret 0524448884 · See original · Rate this translation
+first_5_post_urls:
+  - https://www.facebook.com/groups/1888757561397438/user/100000215095136
+  - https://www.facebook.com/groups/1888757561397438/user/100000215095136
+  - https://www.facebook.com/groups/1888757561397438/user/100000215095136
+  - https://www.facebook.com/groups/1888757561397438/user/100000215095136
+  - https://www.facebook.com/groups/1888757561397438/user/100000215095136
+
+GROUP: חופשה במבצע - דילים במחירי רצפה לחברים בלבד
+group_url: https://www.facebook.com/groups/562563251487282
+page_title: (7) חופשה במבצע - דילים במחירי רצפה לחברים בלבד | Facebook
+current_url: https://www.facebook.com/groups/562563251487282
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_3.png
+cards_found: 0
+text_blocks_extracted: 0
+cleaned_posts: 0
+extraction_failed: 0
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+first_5_cleaned_text_previews:
+first_5_post_urls:
+
+GROUP: צימרים וילות ומלונות דילים והמלצות
+group_url: https://www.facebook.com/groups/eatingandenjoying
+page_title: (7) צימרים וילות ומלונות דילים והמלצות | Facebook
+current_url: https://www.facebook.com/groups/eatingandenjoying
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+first_5_cleaned_text_previews:
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+  - Looking for a secluded cottage in the north for a couple with a private pool and privacy for the dates 21.5-23.5 · See original · Rate this translation
+first_5_post_urls:
+  - https://www.facebook.com/groups/635349127858713/user/2079578525958292
+  - https://www.facebook.com/groups/635349127858713/user/2079578525958292
+  - https://www.facebook.com/groups/635349127858713/user/2079578525958292
+  - https://www.facebook.com/groups/635349127858713/user/2079578525958292
+  - https://www.facebook.com/groups/635349127858713/user/2079578525958292
+
+GROUP: צימרים לזוגות ומשפחות
+group_url: https://www.facebook.com/groups/TTT.CO.IL/
+page_title: (7) צימרים לזוגות ומשפחות | Facebook
+current_url: https://www.facebook.com/groups/TTT.CO.IL/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+first_5_cleaned_text_previews:
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+  - dpeostornS43i613Lor7hmg0tr6i0i14c4e135a0f 782mm73acfen6gft7M
+first_5_post_urls:
+  - https://www.facebook.com/groups/143096085711404/user/100025957244065
+  - https://www.facebook.com/groups/143096085711404/user/100025957244065
+  - https://www.facebook.com/groups/143096085711404/user/100025957244065
+  - https://www.facebook.com/groups/143096085711404/user/100025957244065
+  - https://www.facebook.com/groups/143096085711404/user/100025957244065
+
+GROUP: המלצות על מלונות וצימרים
+group_url: https://www.facebook.com/groups/hotels.israel/
+page_title: (7) המלצות על מלונות וצימרים | Facebook
+current_url: https://www.facebook.com/groups/hotels.israel/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 25
+text_blocks_extracted: 9
+cleaned_posts: 7
+extraction_failed: 18
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 3
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 4
+telegram_sent: 0
+first_5_raw_text_previews:
+  - יוני מזג אוויר מעולה לבריכה וים בנובמבר די קריר להכנס למים … See more
+  - אם הילדים קטנים . זה אומר כל פעם לצאת עם רכב . יום קורל מאוד מרוחק .לאונרדו קלאב נחמד מאוד . אבל פחות שווה . פריוילג' חלש . … See more
+  - Nadin Melamed
+  - גורדוניה מלון מהמם!
+  - גורדוניה זכרון בריכה מושלמת ומחוממת עם נוף היסטרי
+first_5_cleaned_text_previews:
+  - יוני מזג אוויר מעולה לבריכה וים בנובמבר די קריר להכנס למים … See more
+  - אם הילדים קטנים . זה אומר כל פעם לצאת עם רכב . יום קורל מאוד מרוחק .לאונרדו קלאב נחמד מאוד . אבל פחות שווה . פריוילג' חלש . … See more
+  - גורדוניה זכרון בריכה מושלמת ומחוממת עם נוף היסטרי
+  - המים עדיין קרירים בחודש מאי.. קחו את זה בחשבון. דן אילת עם בריכה מחוממת … See more
+  - מלון גליליון ליד יסוד המעלה
+first_5_post_urls:
+  - https://www.facebook.com/groups/hotels.israel/posts/26208106018890849
+  - https://www.facebook.com/groups/hotels.israel/posts/26208106018890849
+  - https://www.facebook.com/groups/1475803472547780/user/2386178445207167
+  - https://www.facebook.com/groups/hotels.israel/posts/26258570033844447
+  - https://www.facebook.com/groups/1475803472547780/user/1293814036
+
+GROUP: צימרים פנויים הנחות ומבצעים
+group_url: https://www.facebook.com/groups/1526140620949614/
+page_title: (7) צימרים פנויים הנחות ומבצעים | Facebook
+current_url: https://www.facebook.com/groups/1526140620949614/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 20
+text_blocks_extracted: 10
+cleaned_posts: 10
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 10
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+first_5_cleaned_text_previews:
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+  - .משפחה גדולה מחפשת סאבלט בצפון. צריכים 6 חדרי שינה לפחות. אפשר גם 2 דירות צמודות. 26-28.7 . במחיר סאבלט. אשמח להצעות. מושלמת ל… See more
+first_5_post_urls:
+  - https://www.facebook.com/groups/1526140620949614/posts/4717944985102479
+  - https://www.facebook.com/groups/1526140620949614/posts/4717944985102479
+  - https://www.facebook.com/groups/1526140620949614/posts/4717944985102479
+  - https://www.facebook.com/groups/1526140620949614/posts/4717944985102479
+  - https://www.facebook.com/groups/1526140620949614/posts/4717944985102479
+
+GROUP: צימרים - מבצעים!
+group_url: https://www.facebook.com/groups/406829932834743/
+page_title: (7) צימרים - מבצעים! | Facebook
+current_url: https://www.facebook.com/groups/406829932834743/
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_8.png
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 5
+telegram_sent: 0
+first_5_raw_text_previews:
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+first_5_cleaned_text_previews:
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+  - הקיץ הזה אתם לא רוצים לפספס את המקום שכולם ידברו עליו… וילת האבן – חופשה יוקרתית בגליל התחתון, במצפה הושעיה וילה שומרת כשרות ושבת מקום מושלם למשפחות, ז… See mor...
+first_5_post_urls:
+  - https://www.facebook.com/groups/406829932834743/user/100010055672234
+  - https://www.facebook.com/groups/406829932834743/user/100010055672234
+  - https://www.facebook.com/groups/406829932834743/user/100010055672234
+  - https://www.facebook.com/groups/406829932834743/user/100010055672234
+  - https://www.facebook.com/groups/406829932834743/user/100010055672234
+
+GROUP: צימרים לזוגות בישראל - מבצעים ודילים
+group_url: https://www.facebook.com/groups/253140539081401/
+page_title: (7) צימרים לזוגות בישראל - מבצעים ודילים | Facebook
+current_url: https://www.facebook.com/groups/253140539081401/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+first_5_cleaned_text_previews:
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+  - s p t S r o d n e o 7 3 i 8 1 3 4 h a 1 2 0 c 2 h 0 u 6 c g t m g 9 1 f i 2 3 t 8 1 3 1 2 6 i t 1 7 4 5 3 9 h 6 5 l 0 · Sunny · Boney M. ·
+first_5_post_urls:
+  - https://www.facebook.com/groups/253140539081401/user/61579052310669
+  - https://www.facebook.com/groups/253140539081401/user/61579052310669
+  - https://www.facebook.com/groups/253140539081401/user/61579052310669
+  - https://www.facebook.com/groups/253140539081401/user/61579052310669
+  - https://www.facebook.com/groups/253140539081401/user/61579052310669
+
+GROUP: דירות אירוח ונופש בכל רחבי הארץ - Airbnb apartments in Israel
+group_url: https://www.facebook.com/groups/160878394919427/
+page_title: (7) דירות אירוח ונופש בכל רחבי הארץ - Airbnb apartments in Israel | Facebook
+current_url: https://www.facebook.com/groups/160878394919427/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 0
+extraction_failed: 10
+empty_after_cleaning: 5
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - מבצע חד פעמי לחופשה חלומית באילת https://www.booking.com/Share-iAJF87e
+  - מבצע חד פעמי לחופשה חלומית באילת https://www.booking.com/Share-iAJF87e
+  - מבצע חד פעמי לחופשה חלומית באילת https://www.booking.com/Share-iAJF87e
+  - מבצע חד פעמי לחופשה חלומית באילת https://www.booking.com/Share-iAJF87e
+  - מבצע חד פעמי לחופשה חלומית באילת https://www.booking.com/Share-iAJF87e
+first_5_cleaned_text_previews:
+first_5_post_urls:
+  - https://www.facebook.com/groups/160878394919427/user/1873612703284197
+  - https://www.facebook.com/groups/160878394919427/user/1873612703284197
+  - https://www.facebook.com/groups/160878394919427/user/1873612703284197
+  - https://www.facebook.com/groups/160878394919427/user/1873612703284197
+  - https://www.facebook.com/groups/160878394919427/user/1873612703284197
+
+GROUP: צימרים ברגע אחרון - הזמנות, המלצות וביקורות
+group_url: https://www.facebook.com/groups/964430016947970/
+page_title: (8) צימרים ברגע אחרון - הזמנות, המלצות וביקורות | Facebook
+current_url: https://www.facebook.com/groups/964430016947970/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+first_5_cleaned_text_previews:
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+  - Last dates for May We accept reserve vouchers!… See more · See original · Rate this translation
+first_5_post_urls:
+  - https://www.facebook.com/groups/964430016947970/user/61585243944700
+  - https://www.facebook.com/groups/964430016947970/user/61585243944700
+  - https://www.facebook.com/groups/964430016947970/user/61585243944700
+  - https://www.facebook.com/groups/964430016947970/user/61585243944700
+  - https://www.facebook.com/groups/964430016947970/user/61585243944700
+
+GROUP: וילות נופש פנויות דילים ומבצעים
+group_url: https://www.facebook.com/groups/186227058217744/
+page_title: (8) וילות נופש פנויות דילים ומבצעים | Facebook
+current_url: https://www.facebook.com/groups/186227058217744/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 5
+telegram_sent: 0
+first_5_raw_text_previews:
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+first_5_cleaned_text_previews:
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+  - היי מחפשת וילה ל17 מבוגרים משפחה. ב23.8 עד ה25.8 בעדיפות לבריכה פרטית תודה
+first_5_post_urls:
+  - https://www.facebook.com/groups/186227058217744/user/100001358946216
+  - https://www.facebook.com/groups/186227058217744/user/100001358946216
+  - https://www.facebook.com/groups/186227058217744/user/100001358946216
+  - https://www.facebook.com/groups/186227058217744/user/100001358946216
+  - https://www.facebook.com/groups/186227058217744/user/100001358946216
+
+GROUP: צימרים 🇮🇱 ישראל
+group_url: https://www.facebook.com/groups/2841091156219582/
+page_title: (8) צימרים 🇮🇱 ישראל | Facebook
+current_url: https://www.facebook.com/groups/2841091156219582/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+first_5_cleaned_text_previews:
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+  - מוזמנים בשמחה לבית כפרי של פעם... ביקנעם מושבה (צפון) 054-469-4690 לפרטים לחצו על הקישור https://shorturl.at/KFVSs
+first_5_post_urls:
+  - https://www.facebook.com/groups/2841091156219582/user/100000525519862
+  - https://www.facebook.com/groups/2841091156219582/user/100000525519862
+  - https://www.facebook.com/groups/2841091156219582/user/100000525519862
+  - https://www.facebook.com/groups/2841091156219582/user/100000525519862
+  - https://www.facebook.com/groups/2841091156219582/user/100000525519862
+
+GROUP: צימרים ווילות נופש פנויות מבצעים והנחות - הקבוצה האיכותית ביותר ברשת
+group_url: https://www.facebook.com/groups/826439737399963/
+page_title: (8) צימרים ווילות נופש פנויות מבצעים והנחות - הקבוצה האיכותית ביותר ברשת | Facebook
+current_url: https://www.facebook.com/groups/826439737399963/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 25
+text_blocks_extracted: 15
+cleaned_posts: 5
+extraction_failed: 20
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 5
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - אשמח למחיר
+  - אשמח לפרטים
+  - Last minute cancellation for this coming weekend And you have a chance to win! Villa Royal Sun Moshav Ein Yaakov!… See more · See original · Rate this translati...
+  - אשמח למחיר
+  - אשמח לפרטים
+first_5_cleaned_text_previews:
+  - Last minute cancellation for this coming weekend And you have a chance to win! Villa Royal Sun Moshav Ein Yaakov!… See more · See original · Rate this translati...
+  - Last minute cancellation for this coming weekend And you have a chance to win! Villa Royal Sun Moshav Ein Yaakov!… See more · See original · Rate this translati...
+  - Last minute cancellation for this coming weekend And you have a chance to win! Villa Royal Sun Moshav Ein Yaakov!… See more · See original · Rate this translati...
+  - Last minute cancellation for this coming weekend And you have a chance to win! Villa Royal Sun Moshav Ein Yaakov!… See more · See original · Rate this translati...
+  - Last minute cancellation for this coming weekend And you have a chance to win! Villa Royal Sun Moshav Ein Yaakov!… See more · See original · Rate this translati...
+first_5_post_urls:
+  - https://www.facebook.com/groups/826439737399963/user/100057671340265
+  - https://www.facebook.com/groups/826439737399963/user/100057671340265
+  - https://www.facebook.com/groups/826439737399963/user/100057671340265
+  - https://www.facebook.com/groups/826439737399963/user/100057671340265
+  - https://www.facebook.com/groups/826439737399963/user/100057671340265
+
+GROUP: ‏צימר בקלות: צימרים, וילות, סאבלט - מאות מתחמי אירוח מחכים לכם גם בדקה ה90
+group_url: https://www.facebook.com/groups/EzZimmer/
+page_title: (8) ‏צימר בקלות: צימרים, וילות, סאבלט - מאות מתחמי אירוח מחכים לכם גם בדקה ה90 | Facebook
+current_url: https://www.facebook.com/groups/EzZimmer/
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_15.png
+cards_found: 0
+text_blocks_extracted: 0
+cleaned_posts: 0
+extraction_failed: 0
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+first_5_cleaned_text_previews:
+first_5_post_urls:
+
+GROUP: צימרים ווילות ברגע האחרון
+group_url: https://www.facebook.com/groups/RRR.CO.IL/
+page_title: (8) צימרים ווילות ברגע האחרון | Facebook
+current_url: https://www.facebook.com/groups/RRR.CO.IL/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 20
+text_blocks_extracted: 10
+cleaned_posts: 5
+extraction_failed: 15
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 5
+telegram_sent: 0
+first_5_raw_text_previews:
+  - וילה לירון
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+  - וילה לירון
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+  - וילה לירון
+first_5_cleaned_text_previews:
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+  - מחפשים ווילה/ צימרים עם בריכה (לא חייב פרטית) לסופ"ש של ה15-16.5 תקציב עד 2,500 ניהיה 6 או 7 אנשים. חשוב שיהיה אפשרי להדליק מנגל (לא אכפת לנו להביא מנגל משל עצמ...
+first_5_post_urls:
+  - https://www.facebook.com/groups/321197478388569/user/100000404218278
+  - https://www.facebook.com/groups/321197478388569/user/100000404218278
+  - https://www.facebook.com/groups/321197478388569/user/100000404218278
+  - https://www.facebook.com/groups/321197478388569/user/100000404218278
+  - https://www.facebook.com/groups/321197478388569/user/100000404218278
+
+GROUP: וילות וצימרים ברגע האחרון – מתחמי נופש בדקה ה-90 למשפחות, זוגות וקבוצות
+group_url: https://www.facebook.com/groups/zimmer90/
+page_title: (8) וילות וצימרים ברגע האחרון – מתחמי נופש בדקה ה-90 למשפחות, זוגות וקבוצות | Facebook
+current_url: https://www.facebook.com/groups/zimmer90/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 0
+extraction_failed: 10
+empty_after_cleaning: 5
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - We opened a new WhatsApp group for deals for B&B and Vacation Villas - only for group members only! Want to join - Comment 'I' and I'll send you a link to the g...
+  - We opened a new WhatsApp group for deals for B&B and Vacation Villas - only for group members only! Want to join - Comment 'I' and I'll send you a link to the g...
+  - We opened a new WhatsApp group for deals for B&B and Vacation Villas - only for group members only! Want to join - Comment 'I' and I'll send you a link to the g...
+  - We opened a new WhatsApp group for deals for B&B and Vacation Villas - only for group members only! Want to join - Comment 'I' and I'll send you a link to the g...
+  - We opened a new WhatsApp group for deals for B&B and Vacation Villas - only for group members only! Want to join - Comment 'I' and I'll send you a link to the g...
+first_5_cleaned_text_previews:
+first_5_post_urls:
+  - https://www.facebook.com/groups/840120949356558/user/61588394794652
+  - https://www.facebook.com/groups/840120949356558/user/61588394794652
+  - https://www.facebook.com/groups/840120949356558/user/61588394794652
+  - https://www.facebook.com/groups/840120949356558/user/61588394794652
+  - https://www.facebook.com/groups/840120949356558/user/61588394794652
+
+GROUP: וילות וצימרים בכל הארץ דקה 90, החופש כבר כאן!
+group_url: https://www.facebook.com/groups/httpswww.tzimerimbeisrael.co.ilfbclidiwar1r/
+page_title: (8) וילות וצימרים בכל הארץ דקה 90, החופש כבר כאן! | Facebook
+current_url: https://www.facebook.com/groups/httpswww.tzimerimbeisrael.co.ilfbclidiwar1r/
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_18.png
+cards_found: 0
+text_blocks_extracted: 0
+cleaned_posts: 0
+extraction_failed: 0
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+first_5_cleaned_text_previews:
+first_5_post_urls:
+
+GROUP: צימרים ונופש לציבור הדתי, אירוח שומרי שבת
+group_url: https://www.facebook.com/groups/133483576762727/
+page_title: (9) צימרים ונופש לציבור הדתי, אירוח שומרי שבת | Facebook
+current_url: https://www.facebook.com/groups/133483576762727/
+login_valid: True
+access_problem: True
+access_problem_reason: content_unavailable
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_19.png
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 0
+extraction_failed: 10
+empty_after_cleaning: 5
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+  - When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it or it's been deleted.
+  - When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it or it's been deleted.
+  - When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it or it's been deleted.
+  - When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it or it's been deleted.
+  - When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it or it's been deleted.
+first_5_cleaned_text_previews:
+first_5_post_urls:
+  - https://www.facebook.com/groups/133483576762727/user/61582374825317
+  - https://www.facebook.com/groups/133483576762727/user/61582374825317
+  - https://www.facebook.com/groups/133483576762727/user/61582374825317
+  - https://www.facebook.com/groups/133483576762727/user/61582374825317
+  - https://www.facebook.com/groups/133483576762727/user/61582374825317
+
+GROUP: צימרים פנויים ומבצעים
+group_url: https://www.facebook.com/groups/zimerpanui/
+page_title: (9) צימרים פנויים ומבצעים | Facebook
+current_url: https://www.facebook.com/groups/zimerpanui/
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_20.png
+cards_found: 0
+text_blocks_extracted: 0
+cleaned_posts: 0
+extraction_failed: 0
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+first_5_cleaned_text_previews:
+first_5_post_urls:
+
+GROUP: צימר ברגע האחרון - צימרים ברגע האחרון - צימרים במבצע - נופש במבצע
+group_url: https://www.facebook.com/groups/1736560946355681/
+page_title: (10) צימר ברגע האחרון - צימרים ברגע האחרון - צימרים במבצע - נופש במבצע | Facebook
+current_url: https://www.facebook.com/groups/1736560946355681/
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_21.png
+cards_found: 0
+text_blocks_extracted: 0
+cleaned_posts: 0
+extraction_failed: 0
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+first_5_cleaned_text_previews:
+first_5_post_urls:
+
+GROUP: צימרים בישראל - דקה 90!🌹
+group_url: https://www.facebook.com/groups/httpsdid.lirc6cn/
+page_title: (10) צימרים בישראל - דקה 90!🌹 | Facebook
+current_url: https://www.facebook.com/groups/httpsdid.lirc6cn/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 5
+telegram_sent: 0
+first_5_raw_text_previews:
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+first_5_cleaned_text_previews:
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+  - וילה ROYAL HOME באילת לחופשה מושלמת! מחפשים חופשה יוקרתית, עם פרטיות מלאה ואווירה מושלמת?… See more
+first_5_post_urls:
+  - https://www.facebook.com/groups/685284721646359/user/100016973297029
+  - https://www.facebook.com/groups/685284721646359/user/100016973297029
+  - https://www.facebook.com/groups/685284721646359/user/100016973297029
+  - https://www.facebook.com/groups/685284721646359/user/100016973297029
+  - https://www.facebook.com/groups/685284721646359/user/100016973297029
+
+GROUP: צימרים בדקה ה90 ומבצעים!
+group_url: https://www.facebook.com/groups/1158007427553522/
+page_title: (10) צימרים בדקה ה90 ומבצעים! | Facebook
+current_url: https://www.facebook.com/groups/1158007427553522/
+login_valid: True
+access_problem: True
+access_problem_reason: join_group_prompt
+screenshot: C:\Users\USER\Documents\New project\lead_detector\debug_screenshots\group_23.png
+cards_found: 0
+text_blocks_extracted: 0
+cleaned_posts: 0
+extraction_failed: 0
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 0
+telegram_sent: 0
+first_5_raw_text_previews:
+first_5_cleaned_text_previews:
+first_5_post_urls:
+
+GROUP: צימרים פנויים דקה -99
+group_url: https://www.facebook.com/groups/605558772911327/
+page_title: (10) צימרים פנויים דקה -99 | Facebook
+current_url: https://www.facebook.com/groups/605558772911327/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 15
+text_blocks_extracted: 5
+cleaned_posts: 5
+extraction_failed: 10
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 0
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 5
+telegram_sent: 0
+first_5_raw_text_previews:
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+first_5_cleaned_text_previews:
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+  - ‏מוזמנים לגלות את מתחמי היוקרה הכי יפים בעיר אילת סוויטות משפחתיות עם נוף לבריכה מחוממת עם ממ״ ד מתאים לי עד 15 אנשים 054-2595901 לפרטים נוספים לחצו… See more
+first_5_post_urls:
+  - https://www.facebook.com/groups/605558772911327/user/61550546693985
+  - https://www.facebook.com/groups/605558772911327/user/61550546693985
+  - https://www.facebook.com/groups/605558772911327/user/61550546693985
+  - https://www.facebook.com/groups/605558772911327/user/61550546693985
+  - https://www.facebook.com/groups/605558772911327/user/61550546693985
+
+GROUP: דוסים נוסעים - מרכז מידע לחופשות ונסיעות משפחתיות ! Family2Go
+group_url: https://www.facebook.com/groups/199098696918242/
+page_title: (10) דוסים נוסעים - מרכז מידע לחופשות ונסיעות משפחתיות ! Family2Go | Facebook
+current_url: https://www.facebook.com/groups/199098696918242/
+login_valid: True
+access_problem: False
+access_problem_reason: -
+cards_found: 48
+text_blocks_extracted: 17
+cleaned_posts: 15
+extraction_failed: 33
+empty_after_cleaning: 0
+rejected_owner_ad: 0
+rejected_negative_keywords: 0
+rejected_low_score: 6
+rejected_ai: 0
+duplicate_seen: 0
+duplicate_lead: 0
+saved: 9
+telegram_sent: 0
+first_5_raw_text_previews:
+  - נשמח לארח אתכם בקשת בגולן. צימר מרווח ויפה. 0528348514- עם סוכה כמובן
+  - וילה לירון בגליל מערבי נייד 0542203712
+  - ממליץ בחום על המקום. היינו שם שנה אחת וחוזרים שוב פעם .מקום מקסים
+  - נשמח לארח אתכם בקשת בגולן. צימר מרווח ויפה. 0528348514- עם סוכה כמובן
+  - וילה לירון בגליל מערבי נייד 0542203712
+first_5_cleaned_text_previews:
+  - נשמח לארח אתכם בקשת בגולן. צימר מרווח ויפה. 0528348514- עם סוכה כמובן
+  - וילה לירון בגליל מערבי נייד 0542203712
+  - ממליץ בחום על המקום. היינו שם שנה אחת וחוזרים שוב פעם .מקום מקסים
+  - נשמח לארח אתכם בקשת בגולן. צימר מרווח ויפה. 0528348514- עם סוכה כמובן
+  - וילה לירון בגליל מערבי נייד 0542203712
+first_5_post_urls:
+  - https://www.facebook.com/groups/199098696918242/user/100003268386075
+  - https://www.facebook.com/groups/199098696918242/user/100037035496213
+  - https://www.facebook.com/groups/199098696918242/user/100013360006287
+  - https://www.facebook.com/groups/199098696918242/user/100003268386075
+  - https://www.facebook.com/groups/199098696918242/user/100037035496213
+
+FINAL SUMMARY
+TOTAL GROUPS: 25
+GROUPS ACCESSIBLE: 17
+GROUPS BLOCKED/NOT_JOINED: 8
+POSTS EXTRACTED: 136
+POSTS_WITH_TEXT: 102
+POSTS_MATCHING_LOOSE: 43
+POSTS_REJECTED_BY_KEYWORDS: 59
+POSTS_REJECTED_BY_AI: 0
+LEADS_SAVED: 43

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Scan Control Center{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Scan Control Center</p>
+      <h2>סריקות פייסבוק</h2>
+    </div>
+    <div class="action-row scan-actions">
+      <button type="button" onclick="scanAction('/scans/start')">Start normal scan</button>
+      <button type="button" class="button-link secondary" onclick="scanAction('/scans/start-loose')">Start loose rescan</button>
+      <button type="button" class="button-link secondary" onclick="scanAction('/scans/start-debug')">Start debug scan</button>
+      <button type="button" class="ghost-button" onclick="scanAction('/scans/stop')">Stop scan</button>
+    </div>
+  </div>
+
+  <div id="scanStatusCard">
+    {% if latest_scan %}
+    <div class="scan-summary-grid">
+      <div class="mini-item"><span>סטטוס</span><strong>{{ latest_scan.status }}</strong></div>
+      <div class="mini-item"><span>מצב</span><strong>{{ latest_scan.mode_label }}</strong></div>
+      <div class="mini-item"><span>קבוצות</span><strong>{{ latest_scan.groups_done or 0 }}/{{ latest_scan.total_groups or 0 }}</strong></div>
+      <div class="mini-item"><span>לידים שנשמרו</span><strong>{{ latest_scan.leads_saved or 0 }}</strong></div>
+      <div class="mini-item"><span>פוסטים תואמים</span><strong>{{ latest_scan.posts_matched or 0 }}</strong></div>
+      <div class="mini-item"><span>טלגרם</span><strong>{{ latest_scan.telegram_sent or 0 }}</strong></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><span style="width: {{ latest_scan.progress_percent or 0 }}%"></span></div>
+      <small>{{ latest_scan.progress_percent or 0 }}%</small>
+    </div>
+    {% else %}
+    <p class="muted">עדיין לא בוצעה סריקה מהדשבורד.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="dual-grid scans-layout">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Latest Logs</p>
+        <h2>לוגים אחרונים</h2>
+      </div>
+    </div>
+    <div class="log-box" id="scanLogBox">
+      {% if latest_scan and latest_scan.latest_log_lines %}
+        {% for line in latest_scan.latest_log_lines %}
+        <div>{{ line }}</div>
+        {% endfor %}
+      {% else %}
+        <div class="muted">אין עדיין לוגים לסריקה.</div>
+      {% endif %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Per Group Progress</p>
+        <h2>התקדמות לפי קבוצה</h2>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="scanGroupsTable">
+        <thead>
+          <tr>
+            <th>קבוצה</th>
+            <th>סטטוס</th>
+            <th>Cards</th>
+            <th>Extracted</th>
+            <th>Cleaned</th>
+            <th>Matched</th>
+            <th>Saved</th>
+            <th>Telegram</th>
+            <th>Failure</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if latest_scan and latest_scan.group_results %}
+            {% for row in latest_scan.group_results %}
+            <tr>
+              <td>{{ row.group_name or row.group_url }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ row.cards_found }}</td>
+              <td>{{ row.extracted }}</td>
+              <td>{{ row.cleaned }}</td>
+              <td>{{ row.matched }}</td>
+              <td>{{ row.saved }}</td>
+              <td>{{ row.telegram_sent }}</td>
+              <td>{{ row.failure_reason or '-' }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="9" class="muted">אין עדיין תוצאות קבוצות.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<script>
+async function scanAction(endpoint) {
+  const response = await fetch(endpoint, { method: 'POST' });
+  const data = await response.json();
+  alert(data.message);
+  await refreshScanStatus();
+}
+
+function renderScanStatus(scan) {
+  const card = document.getElementById('scanStatusCard');
+  const logBox = document.getElementById('scanLogBox');
+  const tableBody = document.querySelector('#scanGroupsTable tbody');
+  if (!scan) {
+    card.innerHTML = '<p class="muted">עדיין לא בוצעה סריקה מהדשבורד.</p>';
+    logBox.innerHTML = '<div class="muted">אין עדיין לוגים לסריקה.</div>';
+    tableBody.innerHTML = '<tr><td colspan="9" class="muted">אין עדיין תוצאות קבוצות.</td></tr>';
+    return;
+  }
+  card.innerHTML = `
+    <div class="scan-summary-grid">
+      <div class="mini-item"><span>סטטוס</span><strong>${scan.status || '-'}</strong></div>
+      <div class="mini-item"><span>מצב</span><strong>${scan.mode_label || '-'}</strong></div>
+      <div class="mini-item"><span>קבוצות</span><strong>${scan.groups_done || 0}/${scan.total_groups || 0}</strong></div>
+      <div class="mini-item"><span>לידים שנשמרו</span><strong>${scan.leads_saved || 0}</strong></div>
+      <div class="mini-item"><span>פוסטים תואמים</span><strong>${scan.posts_matched || 0}</strong></div>
+      <div class="mini-item"><span>טלגרם</span><strong>${scan.telegram_sent || 0}</strong></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><span style="width: ${scan.progress_percent || 0}%"></span></div>
+      <small>${scan.progress_percent || 0}%</small>
+    </div>
+  `;
+  logBox.innerHTML = (scan.latest_log_lines || []).map((line) => `<div>${line}</div>`).join('') || '<div class="muted">אין עדיין לוגים לסריקה.</div>';
+  tableBody.innerHTML = (scan.group_results || []).map((row) => `
+    <tr>
+      <td>${row.group_name || row.group_url}</td>
+      <td>${row.status || '-'}</td>
+      <td>${row.cards_found || 0}</td>
+      <td>${row.extracted || 0}</td>
+      <td>${row.cleaned || 0}</td>
+      <td>${row.matched || 0}</td>
+      <td>${row.saved || 0}</td>
+      <td>${row.telegram_sent || 0}</td>
+      <td>${row.failure_reason || '-'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" class="muted">אין עדיין תוצאות קבוצות.</td></tr>';
+}
+
+async function refreshScanStatus() {
+  const response = await fetch('/scans/status');
+  const data = await response.json();
+  renderScanStatus(data.scan);
+}
+
+setInterval(refreshScanStatus, 3000);
+</script>
+{% endblock %}

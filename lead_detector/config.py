@@ -14,8 +14,8 @@ DEFAULT_STORAGE_STATE = BASE_DIR / "facebook_state.json"
 def resolve_env_path(raw_value: str, default_path: Path) -> Path:
     candidate = Path(raw_value).expanduser() if raw_value else default_path
     if not candidate.is_absolute():
-        candidate = (BASE_DIR / candidate).resolve()
-    return candidate
+        candidate = BASE_DIR / candidate
+    return candidate.resolve()
 
 
 def parse_group_urls(raw_value: str) -> list[str]:
@@ -48,6 +48,10 @@ class Settings:
     ai_min_score: int
     debug_matching: bool
     log_level: str
+
+    @property
+    def resolved_database_path(self) -> Path:
+        return self.database_path.resolve()
 
 
 def load_settings() -> Settings:
@@ -90,5 +94,6 @@ def load_settings() -> Settings:
         "Configured Facebook groups count: %s",
         len(settings.facebook_group_urls),
     )
+    logging.getLogger(__name__).info("DB_PATH | %s", settings.resolved_database_path)
 
     return settings

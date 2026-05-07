@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}AI Insights{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Analytics</p>
+      <h2>AI Insights</h2>
+    </div>
+    <div class="hero-note">תצוגה מקומית של מגמות וזיהוי הזדמנויות בין הקבוצות והלידים.</div>
+  </div>
+
+  <div class="insights-grid">
+    <article class="insight-card">
+      <span>קבוצה מובילה לפי חמים</span>
+      <strong>{{ insights.best_group_by_hot_leads.label if insights.best_group_by_hot_leads else "אין מספיק נתונים" }}</strong>
+      <small>{% if insights.best_group_by_hot_leads %}{{ insights.best_group_by_hot_leads.hot_count }} לידים חמים{% endif %}</small>
+    </article>
+    <article class="insight-card">
+      <span>האזור המבוקש ביותר</span>
+      <strong>{{ (insights.most_common_requested_area.label if insights.most_common_requested_area else "unknown") | area_label }}</strong>
+    </article>
+    <article class="insight-card">
+      <span>סוג האורח השכיח</span>
+      <strong>{{ (insights.most_common_guest_type.label if insights.most_common_guest_type else "unknown") | guest_type_label }}</strong>
+    </article>
+    <article class="insight-card">
+      <span>דחיפות מובילה</span>
+      <strong>{{ (insights.most_common_urgency.label if insights.most_common_urgency else "unknown") | urgency_label }}</strong>
+    </article>
+    <article class="insight-card">
+      <span>לידים שנמצאו היום</span>
+      <strong>{{ insights.leads_found_today }}</strong>
+    </article>
+    <article class="insight-card">
+      <span>לידים חמים היום</span>
+      <strong>{{ insights.hot_leads_today }}</strong>
+    </article>
+  </div>
+</section>
+
+<section class="dual-grid">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Keyword Patterns</p>
+        <h2>מילות מפתח מובילות</h2>
+      </div>
+    </div>
+    <div class="keyword-list">
+      {% for keyword, count in insights.top_matched_keywords %}
+      <span class="keyword">{{ keyword }} · {{ count }}</span>
+      {% else %}
+      <span class="muted">עדיין אין מספיק נתונים לניתוח מילות מפתח.</span>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Group Snapshot</p>
+        <h2>הקבוצות המובילות עכשיו</h2>
+      </div>
+    </div>
+    <div class="mini-table">
+      {% for group in groups[:6] %}
+      <div class="mini-table-row">
+        <strong>{{ group.group_label }}</strong>
+        <span>סה"כ {{ group.total_leads }}</span>
+        <span>חמים {{ group.hot_leads }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין מספיק נתונים להצגת ביצועי קבוצות.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

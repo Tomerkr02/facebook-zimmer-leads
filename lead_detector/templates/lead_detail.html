@@ -5,48 +5,48 @@
   <article class="panel detail-main">
     <div class="lead-card-head">
       <div>
-        <div class="lead-meta">Lead #{{ lead.id }}</div>
+        <div class="lead-meta">Lead #{{ lead.id }} · {{ lead.created_at }}</div>
         <h2>{{ lead.group_name or "קבוצה לא מזוהה" }}</h2>
+        <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
       </div>
-      <span class="status status-{{ lead.status }}">{{ lead.status }}</span>
+      <div class="badge-stack">
+        <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
+        <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
+      </div>
     </div>
 
     <div class="detail-grid">
-      <div><strong>נוצר:</strong> {{ lead.created_at }}</div>
       <div><strong>עודכן:</strong> {{ lead.updated_at }}</div>
-      <div><strong>כותב:</strong> {{ lead.author or "לא זמין" }}</div>
-      <div><strong>מקור:</strong> {{ lead.source }}</div>
       <div><strong>ניקוד מילים:</strong> {{ lead.keyword_score }}</div>
       <div><strong>ניקוד AI:</strong> {{ lead.ai_score if lead.ai_score is not none else "-" }}</div>
       <div><strong>קטגוריה:</strong> {{ lead.ai_category or "-" }}</div>
-      <div><strong>רמת חום:</strong> {{ lead.heat_level or "-" }}</div>
       <div><strong>ציון התאמה:</strong> {{ lead.fit_score if lead.fit_score is not none else "-" }}</div>
-      <div><strong>סוג אורח:</strong> {{ lead.guest_type or "-" }}</div>
-      <div><strong>דחיפות:</strong> {{ lead.urgency or "-" }}</div>
-      <div><strong>אזור:</strong> {{ lead.requested_area or "-" }}</div>
-      <div><strong>כוונת בריכה:</strong> {{ lead.pool_intent or "-" }}</div>
-      <div><strong>כוונת פרטיות:</strong> {{ lead.privacy_intent or "-" }}</div>
+      <div><strong>סוג אורח:</strong> {{ (lead.guest_type or "unknown")|guest_type_label }}</div>
+      <div><strong>דחיפות:</strong> {{ (lead.urgency or "unknown")|urgency_label }}</div>
+      <div><strong>אזור:</strong> {{ (lead.requested_area or "unknown")|area_label }}</div>
+      <div><strong>בריכה:</strong> {{ (lead.pool_intent or "unknown")|pool_label }}</div>
+      <div><strong>פרטיות:</strong> {{ lead.privacy_intent or "-" }}</div>
       <div><strong>פעולה מומלצת:</strong> {{ lead.recommended_action or "-" }}</div>
-      <div><strong>טלגרם:</strong> {{ "כן" if lead.sent_to_telegram else "לא" }}</div>
+      <div><strong>טלגרם:</strong> {{ "נשלח" if lead.sent_to_telegram else "לא נשלח" }}</div>
     </div>
 
     <section class="content-block">
-      <h3>טקסט נקי</h3>
+      <h3>הפוסט הנקי</h3>
       <div class="text-box">{{ lead.cleaned_text or "-" }}</div>
     </section>
 
     <section class="content-block">
-      <h3>טקסט מקורי</h3>
+      <h3>הפוסט המקורי</h3>
       <div class="text-box muted">{{ lead.post_text or "-" }}</div>
     </section>
 
     <section class="content-block">
-      <h3>מילות מפתח</h3>
+      <h3>מילות מפתח שזוהו</h3>
       <div class="keyword-list">
         {% for keyword in lead.matched_keywords_list %}
         <span class="keyword">{{ keyword }}</span>
         {% else %}
-        <span class="muted">אין</span>
+        <span class="muted">אין מילות מפתח שמורות</span>
         {% endfor %}
       </div>
     </section>
@@ -57,7 +57,7 @@
     </section>
 
     <section class="content-block">
-      <h3>סיבות חוסר התאמה</h3>
+      <h3>סיבות חוסר התאמה / סיכון</h3>
       <div class="keyword-list">
         {% for item in lead.bad_fit_reasons_list %}
         <span class="keyword keyword-negative">{{ item }}</span>
@@ -68,20 +68,44 @@
     </section>
 
     <section class="content-block">
-      <div class="copy-row">
+      <div class="reply-head">
         <h3>תגובה ראשונה מוצעת</h3>
-        <button type="button" class="copy-button" onclick="copyReply()">העתקה</button>
+        <button
+          type="button"
+          class="copy-button"
+          onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
+        >
+          העתקה
+        </button>
       </div>
-      <div class="text-box" id="replyText">{{ lead.suggested_first_reply_he or lead.suggested_reply_he or "-" }}</div>
+      <div class="text-box">{{ lead.suggested_first_reply_he or lead.suggested_reply_he or "-" }}</div>
     </section>
 
     <section class="content-block">
-      <h3>פולואפ מוצע</h3>
+      <div class="reply-head">
+        <h3>פולואפ מוצע</h3>
+        <button
+          type="button"
+          class="copy-button"
+          onclick='copyText({{ (lead.suggested_followup_he or "")|tojson }}, this)'
+        >
+          העתקה
+        </button>
+      </div>
       <div class="text-box">{{ lead.suggested_followup_he or "-" }}</div>
     </section>
 
     <section class="content-block">
-      <h3>שאלת מחיר/תאריכים מוצעת</h3>
+      <div class="reply-head">
+        <h3>שאלת מחיר / תאריכים</h3>
+        <button
+          type="button"
+          class="copy-button"
+          onclick='copyText({{ (lead.suggested_price_question_he or "")|tojson }}, this)'
+        >
+          העתקה
+        </button>
+      </div>
       <div class="text-box">{{ lead.suggested_price_question_he or "-" }}</div>
     </section>
 
@@ -89,44 +113,54 @@
       <h3>קישורים</h3>
       <div class="link-row">
         {% if lead.group_url %}
-        <a class="button-link" href="{{ lead.group_url }}" target="_blank" rel="noopener">קבוצה</a>
+        <a class="button-link" href="{{ lead.group_url }}" target="_blank" rel="noopener">פתיחת קבוצה</a>
         {% endif %}
         {% if lead.post_url %}
-        <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פוסט</a>
+        <a class="button-link secondary" href="{{ lead.post_url }}" target="_blank" rel="noopener">פתיחת פוסט</a>
         {% endif %}
       </div>
     </section>
   </article>
 
-  <aside class="panel detail-side">
-    <section class="content-block">
+  <aside class="detail-side">
+    <section class="panel content-block">
       <h3>עדכון סטטוס</h3>
       <div class="status-actions">
-        {% for status in ['contacted', 'waiting_reply', 'closed', 'not_relevant', 'archived', 'new'] %}
+        {% for status in ['new', 'contacted', 'waiting_reply', 'closed', 'not_relevant', 'archived'] %}
         {% if status in statuses %}
-          <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
-            <input type="hidden" name="status" value="{{ status }}">
-            <button type="submit">{{ status }}</button>
-          </form>
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="{{ status }}">
+          <button type="submit">{{ status|status_label }}</button>
+        </form>
         {% endif %}
         {% endfor %}
       </div>
     </section>
 
-    <section class="content-block">
-      <h3>הערות</h3>
-      <form method="post" action="{{ url_for('lead_notes_update', lead_id=lead.id) }}">
-        <textarea name="notes" rows="10" placeholder="הערות פנימיות...">{{ lead.notes or "" }}</textarea>
+    <section class="panel content-block">
+      <h3>הערות פנימיות</h3>
+      <form method="post" action="{{ url_for('lead_notes_update', lead_id=lead.id) }}" class="notes-form">
+        <textarea name="notes" rows="8" placeholder="מה בדקת, מה שלחת, מה חשוב לזכור...">{{ lead.notes or "" }}</textarea>
         <button type="submit">שמירת הערות</button>
       </form>
     </section>
+
+    <section class="panel content-block">
+      <h3>ציר פעילות</h3>
+      {% if events %}
+      <div class="event-list">
+        {% for event in events %}
+        <article class="event-item">
+          <div class="event-type">{{ event.event_type }}</div>
+          <div class="event-time">{{ event.created_at }}</div>
+          <p>{{ event.event_text or "ללא פירוט נוסף" }}</p>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted">עדיין אין אירועים לליד הזה.</p>
+      {% endif %}
+    </section>
   </aside>
 </section>
-
-<script>
-function copyReply() {
-  const reply = document.getElementById("replyText").innerText;
-  navigator.clipboard.writeText(reply);
-}
-</script>
 {% endblock %}

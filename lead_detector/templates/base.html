@@ -3,21 +3,44 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Lead Detector{% endblock %}</title>
+    <title>{% block title %}Royal Water Villa Lead Command Center{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
   </head>
   <body>
+    <div class="background-glow background-glow-a"></div>
+    <div class="background-glow background-glow-b"></div>
     <header class="topbar">
-      <div>
-        <h1 class="brand">Royal Water Villa Leads</h1>
-        <p class="subtitle">ממשק מקומי לבדיקה ידנית וניהול פניות</p>
+      <div class="brand-wrap">
+        <p class="eyebrow">Royal Water Villa</p>
+        <h1 class="brand">Lead Command Center</h1>
+        <p class="subtitle">מערכת מקומית לניהול ידני של לידים מקבוצות פייסבוק. לא לחשוף החוצה ולא לשלוח הודעות אוטומטיות.</p>
       </div>
       <nav class="topnav">
-        <a href="{{ url_for('leads_page') }}">כל הלידים</a>
+        <a href="{{ url_for('leads_page') }}">לידים</a>
+        <a href="{{ url_for('scans_page') }}">סריקות</a>
+        <a href="{{ url_for('insights_page') }}">תובנות</a>
+        <a href="{{ url_for('groups_page') }}">קבוצות</a>
+        <a href="{{ url_for('debug_db') }}">Debug DB</a>
       </nav>
     </header>
     <main class="page">
       {% block content %}{% endblock %}
     </main>
+    <script>
+      async function copyText(value, trigger) {
+        if (!value) {
+          return;
+        }
+        await navigator.clipboard.writeText(value);
+        if (trigger) {
+          const original = trigger.dataset.originalLabel || trigger.innerText;
+          trigger.dataset.originalLabel = original;
+          trigger.innerText = "הועתק";
+          window.setTimeout(() => {
+            trigger.innerText = original;
+          }, 1200);
+        }
+      }
+    </script>
   </body>
 </html>

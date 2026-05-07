@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}ביצועי קבוצות{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Group Performance</p>
+      <h2>ביצועי קבוצות פייסבוק</h2>
+    </div>
+    <div class="hero-note">איזו קבוצה מחזירה יותר לידים איכותיים ואיפה שווה להעמיק את הסריקה.</div>
+  </div>
+
+  {% if groups %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>קבוצה</th>
+          <th>סה"כ לידים</th>
+          <th>חמים</th>
+          <th>חמים חלקית</th>
+          <th>נוצר קשר</th>
+          <th>נסגרו</th>
+          <th>ליד אחרון</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in groups %}
+        <tr>
+          <td>
+            <div class="table-title">{{ group.group_label }}</div>
+            {% if group.group_url %}
+            <a href="{{ group.group_url }}" target="_blank" rel="noopener">פתיחת קבוצה</a>
+            {% endif %}
+          </td>
+          <td>{{ group.total_leads }}</td>
+          <td>{{ group.hot_leads }}</td>
+          <td>{{ group.warm_leads }}</td>
+          <td>{{ group.contacted_leads }}</td>
+          <td>{{ group.closed_leads }}</td>
+          <td>{{ group.last_lead_time or "-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <section class="empty-state">
+    <h3>אין עדיין נתוני קבוצות</h3>
+    <p>אחרי ריצת סריקה נוספת, הטבלה כאן תתחיל להראות מאיפה מגיעים הלידים הטובים ביותר.</p>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

@@ -106,6 +106,14 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    python scraper.py --rescan
    ```
 
+   Useful debug variants:
+
+   ```powershell
+   python scraper.py --debug-scan --rescan
+   python scraper.py --rescan --loose --save-debug-leads
+   python scraper.py --rescan --loose --save-debug-leads --send-telegram
+   ```
+
 8. Run the local dashboard:
 
    ```powershell
@@ -118,11 +126,25 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    http://127.0.0.1:5000
    ```
 
+   Main dashboard routes:
+
+   - `http://127.0.0.1:5000/leads` - main Lead Command Center live feed
+   - `http://127.0.0.1:5000/scans` - local Scan Control Center
+   - `http://127.0.0.1:5000/insights` - local analytics and AI insights
+   - `http://127.0.0.1:5000/groups` - Facebook group performance view
+
    Do not expose this dashboard publicly.
    For quick database diagnostics, you can also open:
 
    ```text
    http://127.0.0.1:5000/debug/db
+   ```
+
+10. Local diagnostics:
+
+   ```powershell
+   python storage.py --debug
+   python telegram.py --test
    ```
 
 9. Optional: schedule the scraper with Windows Task Scheduler at a low frequency.
@@ -138,14 +160,31 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
   - `closed`
   - `archived`
 - The dashboard supports:
-  - newest-first lead list
-  - filtering by status
-  - filtering by heat level, guest type, and urgency
-  - summary counters for hot/warm/contacted/closed leads
-  - full lead detail view
-  - editing notes
-  - updating lead status
-  - copying a suggested first reply
+  - KPI cards for total, hot, warm, new, contacted, closed, rejected, and today's leads
+  - starting local scans directly from the dashboard without exposing the app publicly
+  - scan status tracking, group-level scan progress, and recent scan logs
+  - a live lead feed with quick actions for contacted, waiting reply, closed, not relevant, and archive
+  - filtering by status, heat level, guest type, urgency, requested area, AI category, and free-text search
+  - sorting by newest, fit score, heat level, and urgency
+  - a lead detail page with AI fields, suggested replies, internal notes, and activity timeline
+  - a local analytics page and a group performance page
+  - copying suggested replies, follow-ups, and date/price questions for manual outreach only
+
+## Heat levels
+
+- `hot`: strong fit for Royal Water Villa, usually urgent and highly relevant
+- `warm`: good lead with partial fit or less urgency
+- `cold`: weak fit or incomplete signal, worth reviewing selectively
+- `reject`: bad fit such as parties, events, large groups, or irrelevant requests
+
+## Statuses
+
+- `new`: newly detected and not yet handled
+- `contacted`: manual outreach was sent
+- `waiting_reply`: outreach was sent and waiting for response
+- `closed`: lead was successfully closed or fully resolved
+- `not_relevant`: not a real fit after manual review
+- `archived`: kept for record but not actively handled
 
 ## Scoring rules
 
@@ -326,6 +365,7 @@ Group B -> scanned=X matched=Y alerts=Z
 - Do not expose `http://127.0.0.1:5000` publicly.
 - The system only alerts and suggests replies. It does not automatically message users.
 - Suggested replies are for manual outreach only.
+- `facebook_state.json`, `.env`, `.db`, and `.venv` must stay local and must not be committed.
 
 ## Operational notes
 

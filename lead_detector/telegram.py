@@ -1,8 +1,10 @@
 import json
 import logging
+import argparse
 from urllib import error, request
 
 from ai_scorer import AIScoreResult
+from config import load_settings
 from matcher import MatchResult, score_label
 
 
@@ -75,7 +77,7 @@ def build_alert_message(
 
 def send_message(bot_token: str, chat_id: str, message: str) -> bool:
     if not bot_token or not chat_id:
-        logger.warning("Telegram credentials are missing. Skipping alert.")
+        logger.warning("TELEGRAM_SEND_FAILED | reason=missing_credentials")
         return False
 
     endpoint = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -93,15 +95,29 @@ def send_message(bot_token: str, chat_id: str, message: str) -> bool:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    logger.info("TELEGRAM_SEND_ATTEMPT")
 
     try:
         with request.urlopen(http_request, timeout=20) as response:
             response.read()
-        logger.info("Telegram alert sent successfully.")
+        logger.info("TELEGRAM_SEND_SUCCESS")
         return True
     except error.HTTPError as exc:
-        logger.error("Telegram API returned %s: %s", exc.code, exc.read().decode("utf-8"))
+        logger.error("TELEGRAM_SEND_FAILED | http_status=%s | body=%s", exc.code, exc.read().decode("utf-8"))
     except error.URLError as exc:
-        logger.error("Telegram delivery failed: %s", exc)
+        logger.error("TELEGRAM_SEND_FAILED | error=%s", exc)
 
     return False
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Telegram utility commands")
+    parser.add_argument("--test", action="store_true", help="Send a Telegram test message.")
+    args = parser.parse_args()
+    if args.test:
+        settings = load_settings()
+        send_message(
+            settings.telegram_bot_token,
+            settings.telegram_chat_id,
+            "✅ Royal Water Villa Lead Bot test successful",
+        )
