@@ -16,13 +16,13 @@
         <p class="subtitle">מערכת מקומית לניהול ידני של לידים מקבוצות פייסבוק. לא לחשוף החוצה ולא לשלוח הודעות אוטומטיות.</p>
       </div>
       <nav class="topnav">
-        <a href="{{ url_for('leads_page') }}">לידים</a>
-        <a href="{{ url_for('archived_page') }}">ארכיון</a>
-        <a href="{{ url_for('rejected_page') }}">דחויים</a>
-        <a href="{{ url_for('scans_page') }}">סריקות</a>
-        <a href="{{ url_for('insights_page') }}">תובנות</a>
-        <a href="{{ url_for('groups_page') }}">קבוצות</a>
-        <a href="{{ url_for('debug_db') }}">Debug DB</a>
+        <a class="{% if request.endpoint == 'leads_page' %}active{% endif %}" href="{{ url_for('leads_page') }}">לידים</a>
+        <a class="{% if request.endpoint == 'archived_page' %}active{% endif %}" href="{{ url_for('archived_page') }}">ארכיון</a>
+        <a class="{% if request.endpoint == 'rejected_page' %}active{% endif %}" href="{{ url_for('rejected_page') }}">דחויים</a>
+        <a class="{% if request.endpoint in ['scans_page', 'scan_detail_page', 'scan_leads_page', 'scan_matches_page', 'scan_telegram_page', 'scan_groups_page'] %}active{% endif %}" href="{{ url_for('scans_page') }}">סריקות</a>
+        <a class="{% if request.endpoint == 'insights_page' %}active{% endif %}" href="{{ url_for('insights_page') }}">תובנות</a>
+        <a class="{% if request.endpoint == 'groups_page' %}active{% endif %}" href="{{ url_for('groups_page') }}">קבוצות</a>
+        <a class="{% if request.endpoint == 'debug_db' %}active{% endif %}" href="{{ url_for('debug_db') }}">Debug DB</a>
       </nav>
     </header>
     <main class="page">

@@ -11,15 +11,16 @@
       <div class="hero-note">המערכת מקומית בלבד. כל פנייה נשארת לבדיקה ידנית.</div>
     </div>
     <div class="stats-grid kpi-grid">
-      <div class="stat-card stat-strong"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></div>
-      <div class="stat-card hot"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></div>
+      <a class="stat-card stat-strong clickable-card" href="{{ url_for('leads_page') }}?view=all_active"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></a>
+      <a class="stat-card hot clickable-card" href="{{ url_for('leads_page') }}?heat=hot"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></a>
       <div class="stat-card warm"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
-      <div class="stat-card"><strong>{{ stats.new_leads }}</strong><span>חדשים</span></div>
+      <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=new"><strong>{{ stats.new_leads }}</strong><span>חדשים</span></a>
       <div class="stat-card"><strong>{{ stats.contacted }}</strong><span>נוצר קשר</span></div>
-      <div class="stat-card"><strong>{{ stats.closed }}</strong><span>נסגרו</span></div>
-      <div class="stat-card reject"><strong>{{ stats.rejected }}</strong><span>נדחו / לא רלוונטיים</span></div>
-      <div class="stat-card"><strong>{{ stats.archived }}</strong><span>בארכיון</span></div>
-      <div class="stat-card"><strong>{{ stats.today_leads }}</strong><span>לידים היום</span></div>
+      <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=closed"><strong>{{ stats.closed }}</strong><span>נסגרו</span></a>
+      <a class="stat-card reject clickable-card" href="{{ url_for('rejected_page') }}"><strong>{{ stats.rejected }}</strong><span>נדחו / לא רלוונטיים</span></a>
+      <a class="stat-card clickable-card" href="{{ url_for('archived_page') }}"><strong>{{ stats.archived }}</strong><span>בארכיון</span></a>
+      <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?date=today"><strong>{{ stats.today_leads }}</strong><span>לידים היום</span></a>
+      <a class="stat-card clickable-card" href="{{ url_for('rejected_page') }}?type=owner_ad"><strong>{{ stats.owner_ads }}</strong><span>בעלים / פרסומי בעלי מקומות</span></a>
     </div>
   </article>
 
@@ -185,6 +186,28 @@
       <a class="button-link secondary" href="{{ url_for('leads_page') }}">נקה פילטרים</a>
     </div>
   </form>
+</section>
+
+<section class="panel filter-panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Feed State</p>
+      <h2>מציג {{ filtered_count }} מתוך {{ total_active_leads }} לידים פעילים</h2>
+    </div>
+  </div>
+  {% set active_badges = [] %}
+  <div class="keyword-list">
+    {% if filters.status %}<span class="keyword">סטטוס: {{ filters.status|status_label }}</span>{% endif %}
+    {% if filters.heat_level %}<span class="keyword">חום: {{ filters.heat_level|heat_label }}</span>{% endif %}
+    {% if filters.created_date == 'today' %}<span class="keyword">תאריך: היום</span>{% endif %}
+    {% if filters.search %}<span class="keyword">חיפוש: {{ filters.search }}</span>{% endif %}
+    {% if filters.guest_type %}<span class="keyword">סוג אורח: {{ filters.guest_type|guest_type_label }}</span>{% endif %}
+    {% if filters.requested_area %}<span class="keyword">אזור: {{ filters.requested_area|area_label }}</span>{% endif %}
+    {% if filters.owner_ads_only %}<span class="keyword keyword-negative">פרסומי בעלי מקומות</span>{% endif %}
+    {% if filters.include_archived %}<span class="keyword">כולל ארכיון</span>{% endif %}
+    {% if filters.include_rejected %}<span class="keyword">כולל דחויים</span>{% endif %}
+    {% if not filters.status and not filters.heat_level and not filters.search and not filters.guest_type and not filters.requested_area and not filters.owner_ads_only and not filters.include_archived and not filters.include_rejected %}<span class="muted">אין פילטרים פעילים</span>{% endif %}
+  </div>
 </section>
 
 <section class="panel feed-panel">

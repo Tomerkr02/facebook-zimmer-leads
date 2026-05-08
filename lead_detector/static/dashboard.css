@@ -137,6 +137,12 @@ code {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.topnav a.active {
+  border-color: var(--line-strong);
+  background: rgba(212, 177, 108, 0.14);
+  color: #fff4d6;
+}
+
 .page {
   max-width: 1440px;
   margin: 0 auto;
@@ -203,6 +209,17 @@ code {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.clickable-card {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.clickable-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
 }
 
 .stat-card strong {

@@ -393,8 +393,11 @@ class LeadStorage:
         include_archived: bool = False,
         include_rejected: bool = False,
         include_owner_ads: bool = False,
+        include_closed: bool = False,
     ) -> int:
         filters: list[str] = []
+        if not include_closed:
+            filters.append("COALESCE(status, 'new') IN ('new', 'contacted', 'waiting_reply')")
         if not include_archived:
             filters.append("COALESCE(status, 'new') != 'archived'")
         if not include_rejected:
@@ -1220,6 +1223,7 @@ class LeadStorage:
         include_rejected: bool = False,
         include_owner_ads: bool = False,
         scan_run_id: int | None = None,
+        created_date: str | None = None,
         search: str | None = None,
         sort_by: str = "newest",
     ) -> list[dict[str, Any]]:
@@ -1295,6 +1299,11 @@ class LeadStorage:
         if scan_run_id is not None:
             filters.append("scan_run_id = ?")
             params.append(scan_run_id)
+        if created_date == "today":
+            filters.append("substr(created_at, 1, 10) = ?")
+            params.append(datetime.now(timezone.utc).date().isoformat())
+        if not status:
+            filters.append("COALESCE(status, 'new') IN ('new', 'contacted', 'waiting_reply')")
         if not include_archived and not status:
             filters.append("COALESCE(status, 'new') != 'archived'")
         if not include_rejected and not rejected_only and not status:
@@ -1349,6 +1358,7 @@ class LeadStorage:
         include_rejected = bool(filters.get("include_rejected"))
         include_owner_ads = bool(filters.get("include_owner_ads"))
         scan_run_id = filters.get("scan_run_id")
+        created_date = filters.get("created_date")
         search = filters.get("search")
 
         query = "SELECT COUNT(*) AS count FROM leads"
@@ -1378,6 +1388,11 @@ class LeadStorage:
         if scan_run_id is not None:
             clauses.append("scan_run_id = ?")
             params.append(scan_run_id)
+        if created_date == "today":
+            clauses.append("substr(created_at, 1, 10) = ?")
+            params.append(datetime.now(timezone.utc).date().isoformat())
+        if not status:
+            clauses.append("COALESCE(status, 'new') IN ('new', 'contacted', 'waiting_reply')")
         if not include_archived and not status:
             clauses.append("COALESCE(status, 'new') != 'archived'")
         if not include_rejected and not rejected_only and not status:
@@ -1426,6 +1441,7 @@ class LeadStorage:
             visible_where = " WHERE " + " AND ".join(visibility_filters)
 
             total = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where}").fetchone()["count"])
+            active_total = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status IN ('new', 'contacted', 'waiting_reply')").fetchone()["count"])
             hot = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND heat_level IN ('ultra_hot', 'hot')").fetchone()["count"])
             warm = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND heat_level = 'warm'").fetchone()["count"])
             new_leads = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'new'").fetchone()["count"])
@@ -1433,6 +1449,7 @@ class LeadStorage:
             closed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'closed'").fetchone()["count"])
             rejected = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'not_relevant' OR heat_level = 'reject' OR owner_advertisement = 1").fetchone()["count"])
             archived = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'archived'").fetchone()["count"])
+            owner_ads = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE owner_advertisement = 1").fetchone()["count"])
             today = int(
                 connection.execute(
                     f"SELECT COUNT(*) AS count FROM leads{visible_where} AND substr(created_at, 1, 10) = ?",
@@ -1442,6 +1459,7 @@ class LeadStorage:
         conversion_rate_placeholder = round((closed / total) * 100, 1) if total else 0.0
         return {
             "total_leads": total,
+            "active_leads": active_total,
             "hot_leads": hot,
             "warm_leads": warm,
             "new_leads": new_leads,
@@ -1449,6 +1467,7 @@ class LeadStorage:
             "closed": closed,
             "rejected": rejected,
             "archived": archived,
+            "owner_ads": owner_ads,
             "today_leads": today,
             "conversion_rate_placeholder": conversion_rate_placeholder,
         }

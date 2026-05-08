@@ -294,14 +294,22 @@ def _start_scan(mode: str) -> tuple[bool, str]:
 def _filters_from_request() -> dict[str, str | int]:
     limit = request.args.get("limit", default=100, type=int)
     limit = max(1, min(limit, 500))
+    status = (request.args.get("status") or "").strip()
+    heat_level = (request.args.get("heat_level") or request.args.get("heat") or "").strip()
+    requested_type = (request.args.get("type") or "").strip()
+    created_date = "today" if (request.args.get("date") or "").strip() == "today" else ""
+    view = (request.args.get("view") or "").strip()
     return {
-        "status": (request.args.get("status") or "").strip(),
-        "heat_level": (request.args.get("heat_level") or "").strip(),
+        "status": status,
+        "heat_level": heat_level,
         "guest_type": (request.args.get("guest_type") or "").strip(),
         "urgency": (request.args.get("urgency") or "").strip(),
         "requested_area": (request.args.get("requested_area") or "").strip(),
         "ai_category": (request.args.get("ai_category") or "").strip(),
         "lead_type": (request.args.get("lead_type") or "").strip(),
+        "type": requested_type,
+        "view": view,
+        "created_date": created_date,
         "religious_only": "1" if request.args.get("religious_only") else "",
         "romantic_only": "1" if request.args.get("romantic_only") else "",
         "family_only": "1" if request.args.get("family_only") else "",
@@ -407,11 +415,16 @@ def home():
 @app.route("/leads")
 def leads_page():
     filters = _filters_from_request()
+    if filters["type"] == "owner_ad":
+        filters["owner_ads_only"] = "1"
     total_before_filters = storage.count_active_leads(
         include_archived=bool(filters["include_archived"]),
         include_rejected=bool(filters["include_rejected"]),
         include_owner_ads=bool(filters["owner_ads_only"]),
+        include_closed=bool(filters["status"] == "closed"),
     )
+    total_leads_all = storage.count_leads()
+    total_active_leads = storage.count_active_leads()
     filtered_count = storage.count_filtered_leads(
         status=filters["status"] or None,
         heat_level=filters["heat_level"] or None,
@@ -429,12 +442,15 @@ def leads_page():
         include_archived=bool(filters["include_archived"]),
         include_rejected=bool(filters["include_rejected"]),
         scan_run_id=filters["scan_run_id"],
+        created_date=filters["created_date"] or None,
         search=filters["search"] or None,
     )
     app.logger.info(
-        "LEADS_QUERY | total_before_filters=%s | total_after_filters=%s | active_filters=%s",
-        total_before_filters,
+        "LEADS_QUERY | total_leads_all=%s | total_active_leads=%s | total_after_filters=%s | current_sort=%s | active_filters=%s",
+        total_leads_all,
+        total_active_leads,
         filtered_count,
+        filters["sort"] or "newest",
         {key: value for key, value in filters.items() if value not in {"", None, 0}},
     )
     leads = _decorate_leads(storage.list_leads(
@@ -454,7 +470,9 @@ def leads_page():
         budget_sensitive_only=bool(filters["budget_sensitive_only"]),
         include_archived=bool(filters["include_archived"]),
         include_rejected=bool(filters["include_rejected"]),
+        include_owner_ads=bool(filters["owner_ads_only"]),
         scan_run_id=filters["scan_run_id"],
+        created_date=filters["created_date"] or None,
         search=filters["search"] or None,
         sort_by=str(filters["sort"] or "newest"),
     ))
@@ -464,6 +482,8 @@ def leads_page():
         leads=leads,
         filters=filters,
         total_before_filters=total_before_filters,
+        total_active_leads=total_active_leads,
+        total_leads_all=total_leads_all,
         filtered_count=filtered_count,
         filters_hide_results=filters_hide_results,
         **_dashboard_context(),
@@ -477,7 +497,7 @@ def archived_page():
     filters["status"] = "archived"
     filtered_count = storage.count_filtered_leads(status="archived", include_archived=True)
     leads = _decorate_leads(storage.list_leads(status="archived", limit=int(filters["limit"]), include_archived=True, sort_by=str(filters["sort"] or "newest")))
-    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", total_before_filters=filtered_count, filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", total_before_filters=filtered_count, total_active_leads=filtered_count, total_leads_all=storage.count_leads(), filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
 
 
 @app.route("/rejected")
@@ -485,9 +505,11 @@ def rejected_page():
     filters = _filters_from_request()
     filters["include_rejected"] = "1"
     filters["rejected_only"] = "1"
-    filtered_count = storage.count_filtered_leads(rejected_only=True, include_rejected=True, include_owner_ads=True)
-    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), rejected_only=True, include_rejected=True, include_owner_ads=True, sort_by=str(filters["sort"] or "newest")))
-    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", total_before_filters=filtered_count, filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
+    if filters["type"] == "owner_ad":
+        filters["owner_ads_only"] = "1"
+    filtered_count = storage.count_filtered_leads(rejected_only=True, include_rejected=True, include_owner_ads=True, owner_ads_only=bool(filters["owner_ads_only"]))
+    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), rejected_only=True, include_rejected=True, include_owner_ads=True, owner_ads_only=bool(filters["owner_ads_only"]), sort_by=str(filters["sort"] or "newest")))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", total_before_filters=filtered_count, total_active_leads=filtered_count, total_leads_all=storage.count_leads(), filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
 
 
 @app.route("/scans")
