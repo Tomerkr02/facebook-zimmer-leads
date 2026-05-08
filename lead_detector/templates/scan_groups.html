@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan.id }} Groups{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Scan Groups</p>
+      <h2>קבוצות מסריקה #{{ scan.id }}</h2>
+      {% if active_group %}<p class="muted">קבוצה פעילה: <code>{{ active_group }}</code></p>{% endif %}
+    </div>
+    <div class="action-row">
+      <a class="button-link secondary" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}">פרטי סריקה</a>
+      <a class="button-link secondary" href="{{ back_url }}">Back to scans</a>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>קבוצה</th>
+          <th>סטטוס</th>
+          <th>Cards</th>
+          <th>Extracted</th>
+          <th>Cleaned</th>
+          <th>Matched</th>
+          <th>Saved</th>
+          <th>Telegram</th>
+          <th>Failure</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in group_results %}
+        <tr>
+          <td>
+            <div class="table-title">{{ row.group_name or row.group_url }}</div>
+            <div class="action-row">
+              <a class="button-link secondary" href="{{ url_for('scan_matches_page', scan_run_id=scan.id) }}?group={{ row.group_url }}">Matches</a>
+            </div>
+          </td>
+          <td>{{ row.status }}</td>
+          <td>{{ row.cards_found }}</td>
+          <td>{{ row.extracted }}</td>
+          <td>{{ row.cleaned }}</td>
+          <td>{{ row.matched }}</td>
+          <td>{{ row.saved }}</td>
+          <td>{{ row.telegram_sent }}</td>
+          <td>{{ row.failure_reason or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="muted">אין תוצאות קבוצות לסריקה הזו.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

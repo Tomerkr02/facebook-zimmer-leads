@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan.id }} Telegram{% endblock %}
+{% block content %}
+<section class="dual-grid scans-layout">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Telegram Success</p>
+        <h2>לידים שנשלחו לטלגרם</h2>
+      </div>
+      <a class="button-link secondary" href="{{ back_url }}">Back to scans</a>
+    </div>
+    <div class="mini-table">
+      {% for lead in telegram_leads %}
+      <a class="mini-table-row" href="{{ url_for('lead_detail', lead_id=lead.id) }}">
+        <strong>Lead #{{ lead.id }}</strong>
+        <span>{{ lead.group_name or lead.group_url }}</span>
+        <span>{{ lead.author or "-" }}</span>
+      </a>
+      {% else %}
+      <p class="muted">לא נשלחו לידים לטלגרם בסריקה הזו.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Telegram Failures</p>
+        <h2>כשלים אם קיימים</h2>
+      </div>
+      <a class="button-link secondary" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}">פרטי סריקה</a>
+    </div>
+    <div class="log-box">
+      {% for line in telegram_failures %}
+      <div>{{ line }}</div>
+      {% else %}
+      <div class="muted">לא זוהו כשלים בטלגרם לסריקה הזו.</div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

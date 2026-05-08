@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan.id }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Scan Detail</p>
+      <h2>סריקה #{{ scan.id }}</h2>
+    </div>
+    <a class="button-link secondary" href="{{ back_url }}">Back to scans</a>
+  </div>
+  <div class="scan-summary-grid">
+    <a class="mini-item" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}"><span>סטטוס</span><strong>{{ scan.status }}</strong></a>
+    <a class="mini-item" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}"><span>מצב</span><strong>{{ scan.mode_label or scan.mode }}</strong></a>
+    <a class="mini-item" href="{{ url_for('scan_groups_page', scan_run_id=scan.id) }}"><span>קבוצות</span><strong>{{ scan.groups_done or 0 }}/{{ scan.total_groups or 0 }}</strong></a>
+    <a class="mini-item" href="{{ url_for('scan_leads_page', scan_run_id=scan.id) }}"><span>לידים שנשמרו</span><strong>{{ scan.leads_saved or 0 }}</strong></a>
+    <a class="mini-item" href="{{ url_for('scan_matches_page', scan_run_id=scan.id) }}"><span>פוסטים תואמים</span><strong>{{ scan.posts_matched or 0 }}</strong></a>
+    <a class="mini-item" href="{{ url_for('scan_telegram_page', scan_run_id=scan.id) }}"><span>טלגרם</span><strong>{{ scan.telegram_sent or 0 }}</strong></a>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-bar"><span style="width: {{ scan.progress_percent or 0 }}%"></span></div>
+    <small>{{ scan.progress_percent or 0 }}%</small>
+  </div>
+</section>
+
+<section class="dual-grid scans-layout">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Logs</p>
+        <h2>לוגים</h2>
+      </div>
+    </div>
+    <div class="log-box">
+      {% for line in scan.latest_log_lines or [] %}
+      <div>{{ line }}</div>
+      {% else %}
+      <div class="muted">אין לוגים.</div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Groups</p>
+        <h2>קבוצות בסריקה</h2>
+      </div>
+    </div>
+    <div class="mini-table">
+      {% for row in scan.group_results %}
+      <a class="mini-table-row" href="{{ url_for('scan_groups_page', scan_run_id=scan.id) }}?group={{ row.group_url }}">
+        <strong>{{ row.group_name or row.group_url }}</strong>
+        <span>Matched {{ row.matched }}</span>
+        <span>Saved {{ row.saved }}</span>
+      </a>
+      {% else %}
+      <p class="muted">אין תוצאות קבוצות.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

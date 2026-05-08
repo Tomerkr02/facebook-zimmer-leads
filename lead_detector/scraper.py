@@ -108,6 +108,7 @@ class PostCandidate:
     match: MatchResult
     ai_result: AIScoreResult | None = None
     lead_id: int | None = None
+    scan_match_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -174,6 +175,7 @@ class ScanOptions:
     loose: bool = False
     save_debug_leads: bool = False
     send_telegram: bool | None = None
+    scan_run_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -183,6 +185,7 @@ class ScanRuntime:
     loose: bool
     save_debug_leads: bool
     send_telegram: bool
+    scan_run_id: int | None = None
 
     @property
     def safe_debug_mode(self) -> bool:
@@ -821,6 +824,24 @@ def scan_single_group(
         if is_ai_rejected(settings, candidate, preview, group_name, loose=runtime.loose):
             stats.posts_rejected_by_ai += 1
             debug_record.reject_reason = "ai_rejected"
+            if runtime.scan_run_id is not None:
+                candidate.scan_match_id = storage.save_scan_match(
+                    runtime.scan_run_id,
+                    group_url=group_url,
+                    group_name=group_name,
+                    raw_text=candidate.raw_text,
+                    cleaned_text=candidate.text,
+                    post_url=candidate.post_url,
+                    author=candidate.author_name,
+                    matched_keywords=candidate.match.matched_keywords,
+                    intent_score=candidate.match.intent_score,
+                    fit_score=0,
+                    heat_score=0,
+                    conversion_score=0,
+                    classification=infer_category(candidate),
+                    saved_as_lead_id=None,
+                    reject_reason="ai_rejected",
+                )
             log_matching_debug(settings, candidate, "rejected:ai")
             continue
 
@@ -904,6 +925,7 @@ def scan_single_group(
                 ai_explanation_he=intelligence.ai_explanation_he,
                 recommended_media_type=intelligence.recommended_media_type,
                 recommended_media_reason=intelligence.recommended_media_reason,
+                scan_run_id=runtime.scan_run_id,
                 status=lead_status,
                 sent_to_telegram=0,
             )
@@ -930,6 +952,24 @@ def scan_single_group(
 
         if duplicate_seen or (runtime.rescan and lead_action == "updated"):
             debug_record.reject_reason = "duplicate"
+            if runtime.scan_run_id is not None:
+                candidate.scan_match_id = storage.save_scan_match(
+                    runtime.scan_run_id,
+                    group_url=group_url,
+                    group_name=group_name,
+                    raw_text=candidate.raw_text,
+                    cleaned_text=candidate.text,
+                    post_url=candidate.post_url,
+                    author=candidate.author_name,
+                    matched_keywords=candidate.match.matched_keywords,
+                    intent_score=intelligence.intent_score,
+                    fit_score=intelligence.fit_score,
+                    heat_score=intelligence.heat_score,
+                    conversion_score=intelligence.conversion_score,
+                    classification=intelligence.lead_type,
+                    saved_as_lead_id=candidate.lead_id,
+                    reject_reason="duplicate",
+                )
             log_matching_debug(settings, candidate, "duplicate_skipped")
             if runtime.persist_leads:
                 logger.info(
@@ -944,6 +984,24 @@ def scan_single_group(
 
         if fit_rejected:
             debug_record.reject_reason = "fit_reject"
+            if runtime.scan_run_id is not None:
+                candidate.scan_match_id = storage.save_scan_match(
+                    runtime.scan_run_id,
+                    group_url=group_url,
+                    group_name=group_name,
+                    raw_text=candidate.raw_text,
+                    cleaned_text=candidate.text,
+                    post_url=candidate.post_url,
+                    author=candidate.author_name,
+                    matched_keywords=candidate.match.matched_keywords,
+                    intent_score=intelligence.intent_score,
+                    fit_score=intelligence.fit_score,
+                    heat_score=intelligence.heat_score,
+                    conversion_score=intelligence.conversion_score,
+                    classification=intelligence.lead_type,
+                    saved_as_lead_id=candidate.lead_id,
+                    reject_reason=intelligence.reject_reason_he or "fit_reject",
+                )
             logger.info(
                 "REJECTED_POST | group=%s | lead_id=%s | key=%s | reason=fit_reject | reject_reason=%s | url=%s | preview=%s",
                 group_name,
@@ -957,6 +1015,24 @@ def scan_single_group(
 
         stats.matched += 1
         debug_record.reject_reason = None
+        if runtime.scan_run_id is not None:
+            candidate.scan_match_id = storage.save_scan_match(
+                runtime.scan_run_id,
+                group_url=group_url,
+                group_name=group_name,
+                raw_text=candidate.raw_text,
+                cleaned_text=candidate.text,
+                post_url=candidate.post_url,
+                author=candidate.author_name,
+                matched_keywords=candidate.match.matched_keywords,
+                intent_score=intelligence.intent_score,
+                fit_score=intelligence.fit_score,
+                heat_score=intelligence.heat_score,
+                conversion_score=intelligence.conversion_score,
+                classification=intelligence.lead_type,
+                saved_as_lead_id=candidate.lead_id,
+                reject_reason=None,
+            )
         logger.info(
             "MATCHED_LEAD | group=%s | lead_id=%s | key=%s | score=%s | intent_score=%s | ai_score=%s | keywords=%s | why=%s | intent=%s | timing=%s | couple=%s | url=%s | preview=%s",
             group_name,
@@ -1124,6 +1200,7 @@ def run_scan(
         loose=options.loose,
         save_debug_leads=options.save_debug_leads,
         send_telegram=should_send_telegram,
+        scan_run_id=options.scan_run_id,
     )
     storage = LeadStorage(settings.resolved_database_path)
     logger.info("DB_PATH | %s", settings.resolved_database_path)

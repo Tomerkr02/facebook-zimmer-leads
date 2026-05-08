@@ -18,12 +18,12 @@
   <div id="scanStatusCard">
     {% if latest_scan %}
     <div class="scan-summary-grid">
-      <div class="mini-item"><span>סטטוס</span><strong>{{ latest_scan.status }}</strong></div>
-      <div class="mini-item"><span>מצב</span><strong>{{ latest_scan.mode_label }}</strong></div>
-      <div class="mini-item"><span>קבוצות</span><strong>{{ latest_scan.groups_done or 0 }}/{{ latest_scan.total_groups or 0 }}</strong></div>
-      <div class="mini-item"><span>לידים שנשמרו</span><strong>{{ latest_scan.leads_saved or 0 }}</strong></div>
-      <div class="mini-item"><span>פוסטים תואמים</span><strong>{{ latest_scan.posts_matched or 0 }}</strong></div>
-      <div class="mini-item"><span>טלגרם</span><strong>{{ latest_scan.telegram_sent or 0 }}</strong></div>
+      <a class="mini-item" href="{{ url_for('scan_detail_page', scan_run_id=latest_scan.id) }}"><span>סטטוס</span><strong>{{ latest_scan.status }}</strong></a>
+      <a class="mini-item" href="{{ url_for('scan_detail_page', scan_run_id=latest_scan.id) }}"><span>מצב</span><strong>{{ latest_scan.mode_label }}</strong></a>
+      <a class="mini-item" href="{{ url_for('scan_groups_page', scan_run_id=latest_scan.id) }}"><span>קבוצות</span><strong>{{ latest_scan.groups_done or 0 }}/{{ latest_scan.total_groups or 0 }}</strong></a>
+      <a class="mini-item" href="{{ url_for('leads_page') }}?scan_run_id={{ latest_scan.id }}"><span>לידים שנשמרו</span><strong>{{ latest_scan.leads_saved or 0 }}</strong></a>
+      <a class="mini-item" href="{{ url_for('scan_matches_page', scan_run_id=latest_scan.id) }}"><span>פוסטים תואמים</span><strong>{{ latest_scan.posts_matched or 0 }}</strong></a>
+      <a class="mini-item" href="{{ url_for('scan_telegram_page', scan_run_id=latest_scan.id) }}"><span>טלגרם</span><strong>{{ latest_scan.telegram_sent or 0 }}</strong></a>
     </div>
     <div class="progress-wrap">
       <div class="progress-bar"><span style="width: {{ latest_scan.progress_percent or 0 }}%"></span></div>
@@ -79,7 +79,7 @@
         <tbody>
           {% if latest_scan and latest_scan.group_results %}
             {% for row in latest_scan.group_results %}
-            <tr>
+            <tr class="clickable-row" data-href="{{ url_for('scan_groups_page', scan_run_id=latest_scan.id) }}?group={{ row.group_url }}">
               <td>{{ row.group_name or row.group_url }}</td>
               <td>{{ row.status }}</td>
               <td>{{ row.cards_found }}</td>
@@ -120,12 +120,12 @@ function renderScanStatus(scan) {
   }
   card.innerHTML = `
     <div class="scan-summary-grid">
-      <div class="mini-item"><span>סטטוס</span><strong>${scan.status || '-'}</strong></div>
-      <div class="mini-item"><span>מצב</span><strong>${scan.mode_label || '-'}</strong></div>
-      <div class="mini-item"><span>קבוצות</span><strong>${scan.groups_done || 0}/${scan.total_groups || 0}</strong></div>
-      <div class="mini-item"><span>לידים שנשמרו</span><strong>${scan.leads_saved || 0}</strong></div>
-      <div class="mini-item"><span>פוסטים תואמים</span><strong>${scan.posts_matched || 0}</strong></div>
-      <div class="mini-item"><span>טלגרם</span><strong>${scan.telegram_sent || 0}</strong></div>
+      <a class="mini-item" href="/scan/${scan.id}"><span>סטטוס</span><strong>${scan.status || '-'}</strong></a>
+      <a class="mini-item" href="/scan/${scan.id}"><span>מצב</span><strong>${scan.mode_label || '-'}</strong></a>
+      <a class="mini-item" href="/scan/${scan.id}/groups"><span>קבוצות</span><strong>${scan.groups_done || 0}/${scan.total_groups || 0}</strong></a>
+      <a class="mini-item" href="/leads?scan_run_id=${scan.id}"><span>לידים שנשמרו</span><strong>${scan.leads_saved || 0}</strong></a>
+      <a class="mini-item" href="/scan/${scan.id}/matches"><span>פוסטים תואמים</span><strong>${scan.posts_matched || 0}</strong></a>
+      <a class="mini-item" href="/scan/${scan.id}/telegram"><span>טלגרם</span><strong>${scan.telegram_sent || 0}</strong></a>
     </div>
     <div class="progress-wrap">
       <div class="progress-bar"><span style="width: ${scan.progress_percent || 0}%"></span></div>
@@ -134,7 +134,7 @@ function renderScanStatus(scan) {
   `;
   logBox.innerHTML = (scan.latest_log_lines || []).map((line) => `<div>${line}</div>`).join('') || '<div class="muted">אין עדיין לוגים לסריקה.</div>';
   tableBody.innerHTML = (scan.group_results || []).map((row) => `
-    <tr>
+    <tr class="clickable-row" data-href="/scan/${scan.id}/groups?group=${encodeURIComponent(row.group_url || '')}">
       <td>${row.group_name || row.group_url}</td>
       <td>${row.status || '-'}</td>
       <td>${row.cards_found || 0}</td>
@@ -147,6 +147,12 @@ function renderScanStatus(scan) {
     </tr>
   `).join('') || '<tr><td colspan="9" class="muted">אין עדיין תוצאות קבוצות.</td></tr>';
 }
+
+document.addEventListener('click', (event) => {
+  const row = event.target.closest('.clickable-row');
+  if (!row || !row.dataset.href) return;
+  window.location.href = row.dataset.href;
+});
 
 async function refreshScanStatus() {
   const response = await fetch('/scans/status');

@@ -250,6 +250,19 @@ code {
   padding: 16px;
 }
 
+a.mini-item,
+a.mini-table-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.mini-item:hover,
+a.mini-table-row:hover,
+.clickable-row:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .mini-item span,
 .insight-card span {
   display: block;
@@ -694,6 +707,10 @@ button:hover,
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.clickable-row {
+  cursor: pointer;
 }
 
 .table-wrap {

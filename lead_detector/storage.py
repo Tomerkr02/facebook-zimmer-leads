@@ -170,6 +170,31 @@ class LeadStorage:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS scan_matches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_run_id INTEGER NOT NULL,
+                    group_url TEXT,
+                    group_name TEXT,
+                    created_at TEXT NOT NULL,
+                    raw_text TEXT,
+                    cleaned_text TEXT,
+                    post_url TEXT,
+                    author TEXT,
+                    matched_keywords TEXT,
+                    intent_score INTEGER DEFAULT 0,
+                    fit_score INTEGER DEFAULT 0,
+                    heat_score INTEGER DEFAULT 0,
+                    conversion_score INTEGER DEFAULT 0,
+                    classification TEXT,
+                    saved_as_lead_id INTEGER,
+                    reject_reason TEXT,
+                    FOREIGN KEY (scan_run_id) REFERENCES scan_runs(id),
+                    FOREIGN KEY (saved_as_lead_id) REFERENCES leads(id)
+                )
+                """
+            )
             self._ensure_leads_columns(connection)
             connection.execute(
                 """
@@ -211,6 +236,12 @@ class LeadStorage:
                 """
                 CREATE INDEX IF NOT EXISTS idx_scan_group_results_scan_run
                 ON scan_group_results(scan_run_id, group_url)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_scan_matches_scan_run
+                ON scan_matches(scan_run_id, created_at DESC)
                 """
             )
 
@@ -281,6 +312,7 @@ class LeadStorage:
             "last_contacted_at": "TEXT",
             "recommended_media_type": "TEXT",
             "recommended_media_reason": "TEXT",
+            "scan_run_id": "INTEGER",
         }
         existing_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(leads)").fetchall()
@@ -549,6 +581,82 @@ class LeadStorage:
             )
         self.sync_scan_run_totals(scan_run_id)
 
+    def save_scan_match(
+        self,
+        scan_run_id: int,
+        *,
+        group_url: str | None,
+        group_name: str | None,
+        raw_text: str | None,
+        cleaned_text: str | None,
+        post_url: str | None,
+        author: str | None,
+        matched_keywords: list[str] | None,
+        intent_score: int = 0,
+        fit_score: int = 0,
+        heat_score: int = 0,
+        conversion_score: int = 0,
+        classification: str | None = None,
+        saved_as_lead_id: int | None = None,
+        reject_reason: str | None = None,
+    ) -> int:
+        now = utc_now_iso()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO scan_matches (
+                    scan_run_id,
+                    group_url,
+                    group_name,
+                    created_at,
+                    raw_text,
+                    cleaned_text,
+                    post_url,
+                    author,
+                    matched_keywords,
+                    intent_score,
+                    fit_score,
+                    heat_score,
+                    conversion_score,
+                    classification,
+                    saved_as_lead_id,
+                    reject_reason
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    scan_run_id,
+                    group_url,
+                    group_name,
+                    now,
+                    raw_text,
+                    cleaned_text,
+                    post_url,
+                    author,
+                    self.serialize_keywords(matched_keywords),
+                    intent_score,
+                    fit_score,
+                    heat_score,
+                    conversion_score,
+                    classification,
+                    saved_as_lead_id,
+                    reject_reason,
+                ),
+            )
+        return int(cursor.lastrowid)
+
+    def update_scan_match_saved_lead(self, scan_match_id: int, lead_id: int | None, reject_reason: str | None = None) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE scan_matches
+                SET saved_as_lead_id = COALESCE(?, saved_as_lead_id),
+                    reject_reason = COALESCE(?, reject_reason)
+                WHERE id = ?
+                """,
+                (lead_id, reject_reason, scan_match_id),
+            )
+
     def list_scan_group_results(self, scan_run_id: int) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
@@ -561,6 +669,39 @@ class LeadStorage:
                 (scan_run_id,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def list_scan_matches(
+        self,
+        scan_run_id: int,
+        *,
+        classification: str | None = None,
+        group_url: str | None = None,
+        telegram_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        query = """
+            SELECT sm.*, l.sent_to_telegram
+            FROM scan_matches sm
+            LEFT JOIN leads l ON l.id = sm.saved_as_lead_id
+            WHERE sm.scan_run_id = ?
+        """
+        params: list[Any] = [scan_run_id]
+        if classification:
+            query += " AND sm.classification = ?"
+            params.append(classification)
+        if group_url:
+            query += " AND sm.group_url = ?"
+            params.append(group_url)
+        if telegram_only:
+            query += " AND COALESCE(l.sent_to_telegram, 0) = 1"
+        query += " ORDER BY datetime(sm.created_at) DESC, sm.id DESC"
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["matched_keywords_list"] = self.deserialize_keywords(item.get("matched_keywords"))
+            results.append(item)
+        return results
 
     def get_scan_run(self, scan_run_id: int) -> dict[str, Any] | None:
         with self._connect() as connection:
@@ -694,6 +835,7 @@ class LeadStorage:
         last_contacted_at: str | None = None,
         recommended_media_type: str | None = None,
         recommended_media_reason: str | None = None,
+        scan_run_id: int | None = None,
         status: str = "new",
         sent_to_telegram: int = 0,
         notes: str | None = None,
@@ -790,6 +932,7 @@ class LeadStorage:
                             last_contacted_at = COALESCE(?, last_contacted_at),
                             recommended_media_type = COALESCE(?, recommended_media_type),
                             recommended_media_reason = COALESCE(?, recommended_media_reason),
+                            scan_run_id = COALESCE(?, scan_run_id),
                             sent_to_telegram = MAX(sent_to_telegram, ?),
                             notes = COALESCE(notes, ?),
                             text_hash = ?
@@ -854,6 +997,7 @@ class LeadStorage:
                             last_contacted_at,
                             recommended_media_type,
                             recommended_media_reason,
+                            scan_run_id,
                             sent_to_telegram,
                             notes,
                             text_hash,
@@ -930,6 +1074,7 @@ class LeadStorage:
                     "last_contacted_at",
                     "recommended_media_type",
                     "recommended_media_reason",
+                    "scan_run_id",
                     "status",
                     "sent_to_telegram",
                     "notes",
@@ -995,6 +1140,7 @@ class LeadStorage:
                     last_contacted_at,
                     recommended_media_type,
                     recommended_media_reason,
+                    scan_run_id,
                     status,
                     sent_to_telegram,
                     notes,
@@ -1073,6 +1219,7 @@ class LeadStorage:
         include_archived: bool = False,
         include_rejected: bool = False,
         include_owner_ads: bool = False,
+        scan_run_id: int | None = None,
         search: str | None = None,
         sort_by: str = "newest",
     ) -> list[dict[str, Any]]:
@@ -1145,6 +1292,9 @@ class LeadStorage:
         if lead_type:
             filters.append("lead_type = ?")
             params.append(lead_type)
+        if scan_run_id is not None:
+            filters.append("scan_run_id = ?")
+            params.append(scan_run_id)
         if not include_archived and not status:
             filters.append("COALESCE(status, 'new') != 'archived'")
         if not include_rejected and not rejected_only and not status:
@@ -1198,6 +1348,7 @@ class LeadStorage:
         include_archived = bool(filters.get("include_archived"))
         include_rejected = bool(filters.get("include_rejected"))
         include_owner_ads = bool(filters.get("include_owner_ads"))
+        scan_run_id = filters.get("scan_run_id")
         search = filters.get("search")
 
         query = "SELECT COUNT(*) AS count FROM leads"
@@ -1224,6 +1375,9 @@ class LeadStorage:
         if lead_type:
             clauses.append("lead_type = ?")
             params.append(lead_type)
+        if scan_run_id is not None:
+            clauses.append("scan_run_id = ?")
+            params.append(scan_run_id)
         if not include_archived and not status:
             clauses.append("COALESCE(status, 'new') != 'archived'")
         if not include_rejected and not rejected_only and not status:
@@ -1646,6 +1800,18 @@ class LeadStorage:
         result["owner_advertisement"] = bool(result.get("owner_advertisement"))
         result["budget_sensitive"] = bool(result.get("budget_sensitive"))
         return result
+
+    def get_scan_run_log_lines(self, scan_run_id: int) -> list[str]:
+        scan = self.get_scan_run(scan_run_id)
+        if not scan:
+            return []
+        return [line for line in str(scan.get("log_text") or "").splitlines() if line.strip()]
+
+    def get_scan_telegram_failures(self, scan_run_id: int) -> list[str]:
+        return [
+            line for line in self.get_scan_run_log_lines(scan_run_id)
+            if "TELEGRAM_SEND_FAILED" in line or "missing_lead_id" in line
+        ]
 
 
 if __name__ == "__main__":

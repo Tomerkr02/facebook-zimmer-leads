@@ -92,6 +92,7 @@
     </div>
   </div>
   <form class="filters" method="get" action="{{ url_for('leads_page') }}">
+    {% if filters.scan_run_id %}<input type="hidden" name="scan_run_id" value="{{ filters.scan_run_id }}">{% endif %}
     <label>
       חיפוש חופשי
       <input type="text" name="search" value="{{ filters.search }}" placeholder="טקסט פוסט, שם קבוצה, כותב...">

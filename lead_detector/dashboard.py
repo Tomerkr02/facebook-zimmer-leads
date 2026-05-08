@@ -272,11 +272,11 @@ def _start_scan(mode: str) -> tuple[bool, str]:
         scan_run_id = storage.create_scan_run(mode=mode, total_groups=total_groups)
         stop_event = threading.Event()
         if mode == "debug":
-            options = ScanOptions(rescan=True, debug_scan=True, loose=False, save_debug_leads=False, send_telegram=False)
+            options = ScanOptions(rescan=True, debug_scan=True, loose=False, save_debug_leads=False, send_telegram=False, scan_run_id=scan_run_id)
         elif mode == "loose":
-            options = ScanOptions(rescan=True, loose=True, save_debug_leads=True, send_telegram=False)
+            options = ScanOptions(rescan=True, loose=True, save_debug_leads=True, send_telegram=False, scan_run_id=scan_run_id)
         else:
-            options = ScanOptions()
+            options = ScanOptions(scan_run_id=scan_run_id)
 
         thread = threading.Thread(
             target=_start_scan_worker,
@@ -310,6 +310,7 @@ def _filters_from_request() -> dict[str, str | int]:
         "budget_sensitive_only": "1" if request.args.get("budget_sensitive_only") else "",
         "include_archived": "1" if request.args.get("include_archived") else "",
         "include_rejected": "1" if request.args.get("include_rejected") else "",
+        "scan_run_id": request.args.get("scan_run_id", default=None, type=int),
         "search": (request.args.get("search") or "").strip(),
         "sort": (request.args.get("sort") or "newest").strip(),
         "limit": limit,
@@ -340,6 +341,16 @@ def _dashboard_context() -> dict[str, object]:
         "sort_options": SORT_OPTIONS,
         "latest_scan": latest_scan,
         "scan_running": _is_scan_running(),
+    }
+
+
+def _scan_detail_context(scan_run_id: int) -> dict[str, Any]:
+    scan = storage.get_scan_run(scan_run_id)
+    if not scan:
+        abort(404)
+    return {
+        "scan": _serialize_scan(scan) or scan,
+        "back_url": url_for("scans_page"),
     }
 
 
@@ -417,6 +428,7 @@ def leads_page():
         budget_sensitive_only=bool(filters["budget_sensitive_only"]),
         include_archived=bool(filters["include_archived"]),
         include_rejected=bool(filters["include_rejected"]),
+        scan_run_id=filters["scan_run_id"],
         search=filters["search"] or None,
     )
     app.logger.info(
@@ -442,6 +454,7 @@ def leads_page():
         budget_sensitive_only=bool(filters["budget_sensitive_only"]),
         include_archived=bool(filters["include_archived"]),
         include_rejected=bool(filters["include_rejected"]),
+        scan_run_id=filters["scan_run_id"],
         search=filters["search"] or None,
         sort_by=str(filters["sort"] or "newest"),
     ))
@@ -480,6 +493,71 @@ def rejected_page():
 @app.route("/scans")
 def scans_page():
     return render_template("scans.html", **_dashboard_context())
+
+
+@app.route("/scan/<int:scan_run_id>")
+def scan_detail_page(scan_run_id: int):
+    return render_template("scan_detail.html", **_scan_detail_context(scan_run_id), **_dashboard_context())
+
+
+@app.route("/scan/<int:scan_run_id>/leads")
+def scan_leads_page(scan_run_id: int):
+    scan = storage.get_scan_run(scan_run_id)
+    if not scan:
+        abort(404)
+    leads = _decorate_leads(
+        storage.list_leads(
+            limit=500,
+            include_archived=True,
+            include_rejected=True,
+            include_owner_ads=True,
+            scan_run_id=scan_run_id,
+            sort_by="newest",
+        )
+    )
+    return render_template("scan_leads.html", scan=_serialize_scan(scan) or scan, leads=leads, back_url=url_for("scans_page"), **_dashboard_context())
+
+
+@app.route("/scan/<int:scan_run_id>/matches")
+def scan_matches_page(scan_run_id: int):
+    scan = storage.get_scan_run(scan_run_id)
+    if not scan:
+        abort(404)
+    group_url = (request.args.get("group") or "").strip() or None
+    matches = storage.list_scan_matches(scan_run_id, group_url=group_url)
+    return render_template("scan_matches.html", scan=_serialize_scan(scan) or scan, matches=matches, active_group=group_url, back_url=url_for("scans_page"), **_dashboard_context())
+
+
+@app.route("/scan/<int:scan_run_id>/telegram")
+def scan_telegram_page(scan_run_id: int):
+    scan = storage.get_scan_run(scan_run_id)
+    if not scan:
+        abort(404)
+    telegram_leads = _decorate_leads(
+        storage.list_leads(
+            limit=500,
+            include_archived=True,
+            include_rejected=True,
+            include_owner_ads=True,
+            scan_run_id=scan_run_id,
+            sort_by="newest",
+        )
+    )
+    telegram_leads = [lead for lead in telegram_leads if lead.get("sent_to_telegram")]
+    telegram_failures = storage.get_scan_telegram_failures(scan_run_id)
+    return render_template("scan_telegram.html", scan=_serialize_scan(scan) or scan, telegram_leads=telegram_leads, telegram_failures=telegram_failures, back_url=url_for("scans_page"), **_dashboard_context())
+
+
+@app.route("/scan/<int:scan_run_id>/groups")
+def scan_groups_page(scan_run_id: int):
+    scan = storage.get_scan_run(scan_run_id)
+    if not scan:
+        abort(404)
+    group_filter = (request.args.get("group") or "").strip() or None
+    group_results = scan.get("group_results") or []
+    if group_filter:
+        group_results = [row for row in group_results if row.get("group_url") == group_filter]
+    return render_template("scan_groups.html", scan=_serialize_scan(scan) or scan, group_results=group_results, active_group=group_filter, back_url=url_for("scans_page"), **_dashboard_context())
 
 
 @app.route("/insights")

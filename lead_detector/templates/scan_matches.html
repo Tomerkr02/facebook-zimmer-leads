@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan.id }} Matches{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Scan Matches</p>
+      <h2>פוסטים תואמים מסריקה #{{ scan.id }}</h2>
+      {% if active_group %}<p class="muted">סינון לפי קבוצה: <code>{{ active_group }}</code></p>{% endif %}
+    </div>
+    <div class="action-row">
+      <a class="button-link secondary" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}">פרטי סריקה</a>
+      <a class="button-link secondary" href="{{ back_url }}">Back to scans</a>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>קבוצה</th>
+          <th>כותב</th>
+          <th>Intent</th>
+          <th>Fit</th>
+          <th>Heat</th>
+          <th>Conversion</th>
+          <th>Classification</th>
+          <th>Lead</th>
+          <th>Reject</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in matches %}
+        <tr>
+          <td>
+            <div class="table-title">{{ item.group_name or item.group_url }}</div>
+            <div class="muted">{{ (item.cleaned_text or item.raw_text or "")[:140] }}</div>
+          </td>
+          <td>{{ item.author or "-" }}</td>
+          <td>{{ item.intent_score or 0 }}</td>
+          <td>{{ item.fit_score or 0 }}</td>
+          <td>{{ item.heat_score or 0 }}</td>
+          <td>{{ item.conversion_score or 0 }}</td>
+          <td>{{ item.classification or "-" }}</td>
+          <td>{% if item.saved_as_lead_id %}<a href="{{ url_for('lead_detail', lead_id=item.saved_as_lead_id) }}">Lead #{{ item.saved_as_lead_id }}</a>{% else %}-{% endif %}</td>
+          <td>{{ item.reject_reason or "-" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="muted">אין פוסטים תואמים שמורים לסריקה הזו.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

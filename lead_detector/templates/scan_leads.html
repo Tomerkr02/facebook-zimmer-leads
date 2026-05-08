@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan.id }} Leads{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Scan Leads</p>
+      <h2>לידים מתוך סריקה #{{ scan.id }}</h2>
+    </div>
+    <div class="action-row">
+      <a class="button-link secondary" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}">פרטי סריקה</a>
+      <a class="button-link secondary" href="{{ back_url }}">Back to scans</a>
+    </div>
+  </div>
+  {% if leads %}
+  <div class="lead-grid">
+    {% for lead in leads %}
+    <article class="lead-card{% if lead.perfect_match %} lead-card-vip{% endif %}">
+      <div class="lead-card-head">
+        <div>
+          <div class="lead-meta">Lead #{{ lead.id }} · {{ lead.created_at }}</div>
+          <h3><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h3>
+          <p class="group-subline">{{ lead.author or "כותב לא זמין" }}</p>
+        </div>
+        <div class="badge-stack">
+          <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
+        </div>
+      </div>
+      <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:260] }}</p>
+      <div class="action-row">
+        <a class="button-link secondary" href="{{ url_for('lead_detail', lead_id=lead.id) }}">פרטי ליד</a>
+        {% if lead.post_url %}<a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">פוסט</a>{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <section class="empty-state"><h3>אין לידים שמורים בסריקה הזו</h3></section>
+  {% endif %}
+</section>
+{% endblock %}
