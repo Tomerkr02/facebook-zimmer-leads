@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Learning Review{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Learning Review</p>
+      <h2>מצב למידה</h2>
+    </div>
+    <div class="hero-note">כל פעולה כאן שומרת פידבק, מעדכנת את הליד ומוציאה אותו מתור הבדיקה.</div>
+  </div>
+  <div class="live-badges">
+    <span class="live-pill">ממתינים לבדיקה: {{ leads|length }}</span>
+    <a class="button-link secondary" href="{{ url_for('leads_page') }}">חזרה ללידים</a>
+  </div>
+</section>
+
+<section class="panel feed-panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Review Queue</p>
+      <h2>לידים לבדיקה ידנית</h2>
+    </div>
+  </div>
+
+  {% if leads %}
+  <div class="lead-grid">
+    {% for lead in leads %}
+    <article class="lead-card{% if lead.perfect_match %} lead-card-vip{% endif %}">
+      <div class="lead-card-head">
+        <div>
+          <div class="lead-meta">Lead #{{ lead.id }} · {{ lead.created_at }}</div>
+          <h3><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h3>
+          <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
+        </div>
+        <div class="badge-stack">
+          <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
+          <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
+        </div>
+      </div>
+
+      <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:360] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 360 %}...{% endif %}</p>
+
+      <div class="keyword-list">
+        {% if lead.intent_reasons_list %}
+          {% for item in lead.intent_reasons_list[:5] %}
+          <span class="keyword">{{ item }}</span>
+          {% endfor %}
+        {% endif %}
+        {% if lead.owner_advertisement %}<span class="keyword keyword-negative">Owner Ad</span>{% endif %}
+        {% if lead.pet_request %}<span class="keyword keyword-negative">Pets</span>{% endif %}
+        {% if lead.guest_type == 'large_group' %}<span class="keyword keyword-negative">Large Group</span>{% endif %}
+      </div>
+
+      <div class="action-bar vertical">
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="good_lead">
+          <button type="submit" class="ghost-button">👍 רלוונטי</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="irrelevant">
+          <button type="submit" class="ghost-button">👎 לא רלוונטי</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="pets">
+          <button type="submit" class="ghost-button">🐶 חיות</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="party_event">
+          <button type="submit" class="ghost-button">🎉 מסיבה/אירוע</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="too_large">
+          <button type="submit" class="ghost-button">👥 גדול מדי</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="too_expensive">
+          <button type="submit" class="ghost-button">💸 זול מדי</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="bad_location">
+          <button type="submit" class="ghost-button">📍 אזור לא מתאים</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="owner_ad">
+          <button type="submit" class="ghost-button">🏠 פרסום של בעל צימר</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <section class="empty-state">
+    <h3>אין כרגע לידים שמחכים ללמידה</h3>
+    <p>כשהמערכת תשמור לידים חדשים, הם יופיעו כאן לבדיקה מהירה.</p>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

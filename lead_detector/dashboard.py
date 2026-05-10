@@ -316,12 +316,53 @@ def _filters_from_request() -> dict[str, str | int]:
         "owner_ads_only": "1" if request.args.get("owner_ads_only") else "",
         "rejected_only": "1" if request.args.get("rejected_only") else "",
         "budget_sensitive_only": "1" if request.args.get("budget_sensitive_only") else "",
+        "hide_rejected": "1" if request.args.get("hide_rejected") else "",
         "include_archived": "1" if request.args.get("include_archived") else "",
         "include_rejected": "1" if request.args.get("include_rejected") else "",
+        "telegram_sent": "1" if request.args.get("telegram_sent") else "",
+        "show_all": "1" if request.args.get("show_all") or view == "all_active" else "",
         "scan_run_id": request.args.get("scan_run_id", default=None, type=int),
         "search": (request.args.get("search") or "").strip(),
         "sort": (request.args.get("sort") or "newest").strip(),
         "limit": limit,
+    }
+
+
+def _lead_query_kwargs(
+    filters: Mapping[str, str | int],
+    *,
+    force_show_all: bool = False,
+    force_include_archived: bool = False,
+    force_include_rejected: bool = False,
+    force_include_owner_ads: bool = False,
+    force_status: str | None = None,
+    force_rejected_only: bool = False,
+    force_owner_ads_only: bool = False,
+) -> dict[str, Any]:
+    show_all = force_show_all or bool(filters.get("show_all"))
+    return {
+        "status": force_status if force_status is not None else (filters.get("status") or None),
+        "heat_level": filters.get("heat_level") or None,
+        "guest_type": filters.get("guest_type") or None,
+        "urgency": filters.get("urgency") or None,
+        "requested_area": filters.get("requested_area") or None,
+        "ai_category": filters.get("ai_category") or None,
+        "lead_type": filters.get("lead_type") or None,
+        "religious_only": bool(filters.get("religious_only")),
+        "romantic_only": bool(filters.get("romantic_only")),
+        "family_only": bool(filters.get("family_only")),
+        "owner_ads_only": force_owner_ads_only or bool(filters.get("owner_ads_only")),
+        "rejected_only": force_rejected_only or bool(filters.get("rejected_only")),
+        "budget_sensitive_only": bool(filters.get("budget_sensitive_only")),
+        "hide_rejected": bool(filters.get("hide_rejected")),
+        "include_archived": force_include_archived or bool(filters.get("include_archived")),
+        "include_rejected": force_include_rejected or bool(filters.get("include_rejected")),
+        "include_owner_ads": force_include_owner_ads or show_all or bool(filters.get("owner_ads_only")),
+        "telegram_sent": True if filters.get("telegram_sent") else None,
+        "show_all": show_all,
+        "scan_run_id": filters.get("scan_run_id"),
+        "created_date": filters.get("created_date") or None,
+        "search": filters.get("search") or None,
     }
 
 
@@ -412,77 +453,48 @@ def home():
     return redirect(url_for("leads_page"))
 
 
+@app.route("/leads/all")
+def leads_all_page():
+    return redirect(url_for("leads_page", show_all=1))
+
+
 @app.route("/leads")
 def leads_page():
     filters = _filters_from_request()
     if filters["type"] == "owner_ad":
         filters["owner_ads_only"] = "1"
-    total_before_filters = storage.count_active_leads(
-        include_archived=bool(filters["include_archived"]),
-        include_rejected=bool(filters["include_rejected"]),
-        include_owner_ads=bool(filters["owner_ads_only"]),
-        include_closed=bool(filters["status"] == "closed"),
-    )
+    filters["show_all"] = "1"
+    query_kwargs = _lead_query_kwargs(filters, force_show_all=True)
     total_leads_all = storage.count_leads()
-    total_active_leads = storage.count_active_leads()
-    filtered_count = storage.count_filtered_leads(
-        status=filters["status"] or None,
-        heat_level=filters["heat_level"] or None,
-        guest_type=filters["guest_type"] or None,
-        urgency=filters["urgency"] or None,
-        requested_area=filters["requested_area"] or None,
-        ai_category=filters["ai_category"] or None,
-        lead_type=filters["lead_type"] or None,
-        religious_only=bool(filters["religious_only"]),
-        romantic_only=bool(filters["romantic_only"]),
-        family_only=bool(filters["family_only"]),
-        owner_ads_only=bool(filters["owner_ads_only"]),
-        rejected_only=bool(filters["rejected_only"]),
-        budget_sensitive_only=bool(filters["budget_sensitive_only"]),
-        include_archived=bool(filters["include_archived"]),
-        include_rejected=bool(filters["include_rejected"]),
-        scan_run_id=filters["scan_run_id"],
-        created_date=filters["created_date"] or None,
-        search=filters["search"] or None,
-    )
+    total_non_archived = storage.count_non_archived_leads()
+    filtered_count = storage.count_filtered_leads(**query_kwargs)
     app.logger.info(
-        "LEADS_QUERY | total_leads_all=%s | total_active_leads=%s | total_after_filters=%s | current_sort=%s | active_filters=%s",
+        "LEADS_QUERY | total_all=%s | total_non_archived=%s | total_after_filters=%s | current_sort=%s | scan_run_id=%s | telegram_sent=%s | status=%s | show_all=%s | active_filters=%s",
         total_leads_all,
-        total_active_leads,
+        total_non_archived,
         filtered_count,
         filters["sort"] or "newest",
+        filters["scan_run_id"],
+        bool(filters["telegram_sent"]),
+        filters["status"] or "-",
+        bool(filters["show_all"]),
         {key: value for key, value in filters.items() if value not in {"", None, 0}},
     )
-    leads = _decorate_leads(storage.list_leads(
-        status=filters["status"] or None,
-        limit=int(filters["limit"]),
-        heat_level=filters["heat_level"] or None,
-        guest_type=filters["guest_type"] or None,
-        urgency=filters["urgency"] or None,
-        requested_area=filters["requested_area"] or None,
-        ai_category=filters["ai_category"] or None,
-        lead_type=filters["lead_type"] or None,
-        religious_only=bool(filters["religious_only"]),
-        romantic_only=bool(filters["romantic_only"]),
-        family_only=bool(filters["family_only"]),
-        owner_ads_only=bool(filters["owner_ads_only"]),
-        rejected_only=bool(filters["rejected_only"]),
-        budget_sensitive_only=bool(filters["budget_sensitive_only"]),
-        include_archived=bool(filters["include_archived"]),
-        include_rejected=bool(filters["include_rejected"]),
-        include_owner_ads=bool(filters["owner_ads_only"]),
-        scan_run_id=filters["scan_run_id"],
-        created_date=filters["created_date"] or None,
-        search=filters["search"] or None,
-        sort_by=str(filters["sort"] or "newest"),
-    ))
-    filters_hide_results = filtered_count == 0 and total_before_filters > 0
+    leads = _decorate_leads(
+        storage.list_leads(
+            limit=int(filters["limit"]),
+            sort_by=str(filters["sort"] or "newest"),
+            **query_kwargs,
+        )
+    )
+    filters_hide_results = filtered_count == 0 and total_non_archived > 0
     return render_template(
         "leads.html",
         leads=leads,
         filters=filters,
-        total_before_filters=total_before_filters,
-        total_active_leads=total_active_leads,
+        total_before_filters=total_non_archived,
+        total_active_leads=total_non_archived,
+        total_non_archived=total_non_archived,
         total_leads_all=total_leads_all,
         filtered_count=filtered_count,
         filters_hide_results=filters_hide_results,
@@ -495,21 +507,37 @@ def archived_page():
     filters = _filters_from_request()
     filters["include_archived"] = "1"
     filters["status"] = "archived"
-    filtered_count = storage.count_filtered_leads(status="archived", include_archived=True)
-    leads = _decorate_leads(storage.list_leads(status="archived", limit=int(filters["limit"]), include_archived=True, sort_by=str(filters["sort"] or "newest")))
-    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", total_before_filters=filtered_count, total_active_leads=filtered_count, total_leads_all=storage.count_leads(), filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
+    filtered_count = storage.count_filtered_leads(status="archived", include_archived=True, include_owner_ads=True, show_all=True)
+    leads = _decorate_leads(storage.list_leads(status="archived", limit=int(filters["limit"]), include_archived=True, include_owner_ads=True, show_all=True, sort_by=str(filters["sort"] or "newest")))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים בארכיון", total_before_filters=filtered_count, total_active_leads=filtered_count, total_non_archived=storage.count_non_archived_leads(), total_leads_all=storage.count_leads(), filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
 
 
 @app.route("/rejected")
 def rejected_page():
     filters = _filters_from_request()
     filters["include_rejected"] = "1"
-    filters["rejected_only"] = "1"
     if filters["type"] == "owner_ad":
         filters["owner_ads_only"] = "1"
-    filtered_count = storage.count_filtered_leads(rejected_only=True, include_rejected=True, include_owner_ads=True, owner_ads_only=bool(filters["owner_ads_only"]))
-    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), rejected_only=True, include_rejected=True, include_owner_ads=True, owner_ads_only=bool(filters["owner_ads_only"]), sort_by=str(filters["sort"] or "newest")))
-    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", total_before_filters=filtered_count, total_active_leads=filtered_count, total_leads_all=storage.count_leads(), filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
+        filters["rejected_only"] = ""
+    else:
+        filters["rejected_only"] = "1"
+    query_kwargs = _lead_query_kwargs(
+        filters,
+        force_show_all=True,
+        force_include_rejected=True,
+        force_include_owner_ads=True,
+        force_rejected_only=not bool(filters["owner_ads_only"]),
+        force_owner_ads_only=bool(filters["owner_ads_only"]),
+    )
+    filtered_count = storage.count_filtered_leads(**query_kwargs)
+    leads = _decorate_leads(storage.list_leads(limit=int(filters["limit"]), sort_by=str(filters["sort"] or "newest"), **query_kwargs))
+    return render_template("leads.html", leads=leads, filters=filters, page_title="לידים שנדחו", total_before_filters=filtered_count, total_active_leads=filtered_count, total_non_archived=storage.count_non_archived_leads(), total_leads_all=storage.count_leads(), filtered_count=filtered_count, filters_hide_results=False, **_dashboard_context())
+
+
+@app.route("/review")
+def review_page():
+    leads = _decorate_leads(storage.list_review_leads(limit=120))
+    return render_template("review.html", leads=leads, **_dashboard_context())
 
 
 @app.route("/scans")
@@ -685,6 +713,65 @@ def lead_feedback_update(lead_id: int):
     if next_url:
         return redirect(next_url)
     return redirect(url_for("lead_detail", lead_id=lead_id))
+
+
+@app.post("/review/<int:lead_id>")
+def review_feedback_update(lead_id: int):
+    action = (request.form.get("action") or "").strip()
+    action_map: dict[str, dict[str, Any]] = {
+        "good_lead": {"feedback_type": "good_lead"},
+        "irrelevant": {"feedback_type": "irrelevant", "status": "not_relevant"},
+        "pets": {
+            "feedback_type": "pets",
+            "status": "not_relevant",
+            "fields": {
+                "pet_request": 1,
+                "pet_friendly_requested": 1,
+                "reject_reason_he": "הבקשה כוללת חיות מחמד ולכן לא מתאימה ל-Royal Water Villa.",
+            },
+        },
+        "party_event": {
+            "feedback_type": "irrelevant",
+            "status": "not_relevant",
+            "fields": {
+                "lead_type": "event_seeker",
+                "reject_reason_he": "נראה שמדובר בבקשת מסיבה או אירוע ולא באירוח שקט.",
+            },
+        },
+        "too_large": {
+            "feedback_type": "too_large",
+            "status": "not_relevant",
+            "fields": {
+                "guest_type": "large_group",
+                "reject_reason_he": "הבקשה נראית גדולה מדי לפורמט האירוח של Royal Water Villa.",
+            },
+        },
+        "too_expensive": {"feedback_type": "too_expensive", "status": "not_relevant"},
+        "bad_location": {"feedback_type": "bad_location", "status": "not_relevant"},
+        "owner_ad": {
+            "feedback_type": "owner_ad",
+            "status": "not_relevant",
+            "fields": {
+                "owner_advertisement": 1,
+                "lead_type": "owner_advertiser",
+                "reject_reason_he": "זוהה כפרסום של בעל מקום ולא כליד של אורח.",
+            },
+        },
+    }
+    selected = action_map.get(action)
+    if not selected:
+        abort(400)
+    fields = selected.get("fields") or {}
+    if fields:
+        storage.update_lead_fields(lead_id, **fields)
+    if selected.get("status"):
+        storage.update_lead_status(lead_id, str(selected["status"]))
+    storage.add_lead_feedback(
+        lead_id,
+        str(selected["feedback_type"]),
+        feedback_reason=action,
+    )
+    return redirect(url_for("review_page"))
 
 
 if __name__ == "__main__":

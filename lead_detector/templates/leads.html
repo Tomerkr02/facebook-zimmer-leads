@@ -8,10 +8,13 @@
         <p class="eyebrow">Live Overview</p>
         <h2>מרכז הפיקוד של הלידים</h2>
       </div>
-      <div class="hero-note">המערכת מקומית בלבד. כל פנייה נשארת לבדיקה ידנית.</div>
+      <div class="live-badges">
+        <a class="button-link secondary" href="{{ url_for('review_page') }}">מצב למידה</a>
+        <div class="hero-note">המערכת מקומית בלבד. כל פנייה נשארת לבדיקה ידנית.</div>
+      </div>
     </div>
     <div class="stats-grid kpi-grid">
-      <a class="stat-card stat-strong clickable-card" href="{{ url_for('leads_page') }}?view=all_active"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></a>
+      <a class="stat-card stat-strong clickable-card" href="{{ url_for('leads_all_page') }}"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></a>
       <a class="stat-card hot clickable-card" href="{{ url_for('leads_page') }}?heat=hot"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></a>
       <div class="stat-card warm"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=new"><strong>{{ stats.new_leads }}</strong><span>חדשים</span></a>
@@ -94,6 +97,8 @@
   </div>
   <form class="filters" method="get" action="{{ url_for('leads_page') }}">
     {% if filters.scan_run_id %}<input type="hidden" name="scan_run_id" value="{{ filters.scan_run_id }}">{% endif %}
+    {% if filters.telegram_sent %}<input type="hidden" name="telegram_sent" value="1">{% endif %}
+    {% if filters.show_all %}<input type="hidden" name="show_all" value="1">{% endif %}
     <label>
       חיפוש חופשי
       <input type="text" name="search" value="{{ filters.search }}" placeholder="טקסט פוסט, שם קבוצה, כותב...">
@@ -166,9 +171,9 @@
     <label class="check-option"><input type="checkbox" name="family_only" value="1" {% if filters.family_only %}checked{% endif %}> משפחה</label>
     <label class="check-option"><input type="checkbox" name="owner_ads_only" value="1" {% if filters.owner_ads_only %}checked{% endif %}> פרסומי בעלי מקומות</label>
     <label class="check-option"><input type="checkbox" name="rejected_only" value="1" {% if filters.rejected_only %}checked{% endif %}> רק דחויים</label>
+    <label class="check-option"><input type="checkbox" name="hide_rejected" value="1" {% if filters.hide_rejected %}checked{% endif %}> הסתר דחויים / לא רלוונטיים</label>
     <label class="check-option"><input type="checkbox" name="budget_sensitive_only" value="1" {% if filters.budget_sensitive_only %}checked{% endif %}> רגישי מחיר</label>
     <label class="check-option"><input type="checkbox" name="include_archived" value="1" {% if filters.include_archived %}checked{% endif %}> כלול ארכיון</label>
-    <label class="check-option"><input type="checkbox" name="include_rejected" value="1" {% if filters.include_rejected %}checked{% endif %}> כלול דחויים</label>
     <label>
       מיון
       <select name="sort">
@@ -192,7 +197,7 @@
   <div class="panel-head">
     <div>
       <p class="eyebrow">Feed State</p>
-      <h2>מציג {{ filtered_count }} מתוך {{ total_active_leads }} לידים פעילים</h2>
+      <h2>מציג {{ filtered_count }} מתוך {{ total_non_archived or total_active_leads }} לידים</h2>
     </div>
   </div>
   {% set active_badges = [] %}
@@ -201,12 +206,14 @@
     {% if filters.heat_level %}<span class="keyword">חום: {{ filters.heat_level|heat_label }}</span>{% endif %}
     {% if filters.created_date == 'today' %}<span class="keyword">תאריך: היום</span>{% endif %}
     {% if filters.search %}<span class="keyword">חיפוש: {{ filters.search }}</span>{% endif %}
+    {% if filters.scan_run_id %}<span class="keyword">סריקה: #{{ filters.scan_run_id }}</span>{% endif %}
+    {% if filters.telegram_sent %}<span class="keyword">טלגרם בלבד</span>{% endif %}
     {% if filters.guest_type %}<span class="keyword">סוג אורח: {{ filters.guest_type|guest_type_label }}</span>{% endif %}
     {% if filters.requested_area %}<span class="keyword">אזור: {{ filters.requested_area|area_label }}</span>{% endif %}
     {% if filters.owner_ads_only %}<span class="keyword keyword-negative">פרסומי בעלי מקומות</span>{% endif %}
+    {% if filters.hide_rejected %}<span class="keyword">מוסתרים דחויים / לא רלוונטיים</span>{% endif %}
     {% if filters.include_archived %}<span class="keyword">כולל ארכיון</span>{% endif %}
-    {% if filters.include_rejected %}<span class="keyword">כולל דחויים</span>{% endif %}
-    {% if not filters.status and not filters.heat_level and not filters.search and not filters.guest_type and not filters.requested_area and not filters.owner_ads_only and not filters.include_archived and not filters.include_rejected %}<span class="muted">אין פילטרים פעילים</span>{% endif %}
+    {% if not filters.status and not filters.heat_level and not filters.search and not filters.guest_type and not filters.requested_area and not filters.owner_ads_only and not filters.include_archived and not filters.hide_rejected and not filters.scan_run_id and not filters.telegram_sent %}<span class="muted">אין פילטרים פעילים</span>{% endif %}
   </div>
 </section>
 
@@ -216,11 +223,11 @@
       <p class="eyebrow">Live Lead Feed</p>
       <h2>{{ page_title or "לידים אחרונים" }}</h2>
     </div>
-    <div class="live-badges">
+      <div class="live-badges">
       <span class="live-pill">חמים: {{ stats.hot_leads }}</span>
       <span class="live-pill">חדשים: {{ stats.new_leads }}</span>
       <span class="live-pill">תואמים לפילטרים: {{ filtered_count }}</span>
-      <span class="live-pill">סה"כ לפני פילטרים: {{ total_before_filters }}</span>
+      <span class="live-pill">סה"כ לא בארכיון: {{ total_non_archived or total_before_filters }}</span>
     </div>
   </div>
 
@@ -262,8 +269,12 @@
         {% if lead.religious_signal %}<span class="keyword">דתי</span>{% endif %}
         {% if lead.romantic_signal %}<span class="keyword">רומנטי</span>{% endif %}
         {% if lead.family_signal %}<span class="keyword">משפחה</span>{% endif %}
+        {% if lead.status == 'not_relevant' %}<span class="keyword keyword-negative">לא רלוונטי</span>{% endif %}
+        {% if lead.heat_level == 'reject' %}<span class="keyword keyword-negative">Rejected</span>{% endif %}
+        {% if (lead.heat_level or 'cold') == 'cold' %}<span class="keyword">Cold</span>{% endif %}
         {% if lead.owner_advertisement %}<span class="keyword keyword-negative">Owner Ad</span>{% endif %}
         {% if lead.pet_request %}<span class="keyword keyword-negative">Pets Reject</span>{% endif %}
+        {% if lead.group_size_estimate and lead.group_size_estimate >= 6 or lead.guest_type == 'large_group' %}<span class="keyword keyword-negative">גדול מדי</span>{% endif %}
         {% if lead.followup_recommended %}<span class="keyword keyword-attention">🔔 Follow-up recommended</span>{% endif %}
       </div>
 
@@ -369,7 +380,7 @@
   <section class="empty-state">
     {% if filters_hide_results %}
     <h3>יש לידים במערכת, אבל הפילטרים הנוכחיים מסתירים אותם</h3>
-    <p>נסה ללחוץ על <strong>נקה פילטרים</strong> או להרחיב את הסינון כדי לראות את כל הלידים הפעילים.</p>
+    <p>נסה ללחוץ על <strong>נקה פילטרים</strong> או להרחיב את הסינון כדי לראות את כל הלידים שנשמרו.</p>
     {% else %}
     <h3>עדיין אין לידים</h3>
     <p>תריץ <code>python scraper.py --rescan</code> כדי להתחיל לסרוק קבוצות ולאכלס את מרכז הפיקוד.</p>

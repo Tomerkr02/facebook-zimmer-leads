@@ -13,9 +13,9 @@
     <a class="mini-item" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}"><span>סטטוס</span><strong>{{ scan.status }}</strong></a>
     <a class="mini-item" href="{{ url_for('scan_detail_page', scan_run_id=scan.id) }}"><span>מצב</span><strong>{{ scan.mode_label or scan.mode }}</strong></a>
     <a class="mini-item" href="{{ url_for('scan_groups_page', scan_run_id=scan.id) }}"><span>קבוצות</span><strong>{{ scan.groups_done or 0 }}/{{ scan.total_groups or 0 }}</strong></a>
-    <a class="mini-item" href="{{ url_for('scan_leads_page', scan_run_id=scan.id) }}"><span>לידים שנשמרו</span><strong>{{ scan.leads_saved or 0 }}</strong></a>
+    <a class="mini-item" href="{{ url_for('leads_page') }}?scan_run_id={{ scan.id }}&show_all=1"><span>לידים שנשמרו</span><strong>{{ scan.leads_saved or 0 }}</strong></a>
     <a class="mini-item" href="{{ url_for('scan_matches_page', scan_run_id=scan.id) }}"><span>פוסטים תואמים</span><strong>{{ scan.posts_matched or 0 }}</strong></a>
-    <a class="mini-item" href="{{ url_for('scan_telegram_page', scan_run_id=scan.id) }}"><span>טלגרם</span><strong>{{ scan.telegram_sent or 0 }}</strong></a>
+    <a class="mini-item" href="{{ url_for('leads_page') }}?scan_run_id={{ scan.id }}&telegram_sent=1&show_all=1"><span>טלגרם</span><strong>{{ scan.telegram_sent or 0 }}</strong></a>
   </div>
   <div class="progress-wrap">
     <div class="progress-bar"><span style="width: {{ scan.progress_percent or 0 }}%"></span></div>

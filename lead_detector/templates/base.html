@@ -17,6 +17,7 @@
       </div>
       <nav class="topnav">
         <a class="{% if request.endpoint == 'leads_page' %}active{% endif %}" href="{{ url_for('leads_page') }}">לידים</a>
+        <a class="{% if request.endpoint == 'review_page' %}active{% endif %}" href="{{ url_for('review_page') }}">מצב למידה</a>
         <a class="{% if request.endpoint == 'archived_page' %}active{% endif %}" href="{{ url_for('archived_page') }}">ארכיון</a>
         <a class="{% if request.endpoint == 'rejected_page' %}active{% endif %}" href="{{ url_for('rejected_page') }}">דחויים</a>
         <a class="{% if request.endpoint in ['scans_page', 'scan_detail_page', 'scan_leads_page', 'scan_matches_page', 'scan_telegram_page', 'scan_groups_page'] %}active{% endif %}" href="{{ url_for('scans_page') }}">סריקות</a>

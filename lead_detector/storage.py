@@ -412,6 +412,17 @@ class LeadStorage:
             row = connection.execute(query).fetchone()
         return int(row["count"]) if row else 0
 
+    def count_non_archived_leads(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM leads
+                WHERE COALESCE(status, 'new') != 'archived'
+                """
+            ).fetchone()
+        return int(row["count"]) if row else 0
+
     def count_lead_events(self) -> int:
         with self._connect() as connection:
             row = connection.execute("SELECT COUNT(*) AS count FROM lead_events").fetchone()
@@ -1222,6 +1233,9 @@ class LeadStorage:
         include_archived: bool = False,
         include_rejected: bool = False,
         include_owner_ads: bool = False,
+        hide_rejected: bool = False,
+        telegram_sent: bool | None = None,
+        show_all: bool = False,
         scan_run_id: int | None = None,
         created_date: str | None = None,
         search: str | None = None,
@@ -1299,17 +1313,19 @@ class LeadStorage:
         if scan_run_id is not None:
             filters.append("scan_run_id = ?")
             params.append(scan_run_id)
+        if telegram_sent is True:
+            filters.append("COALESCE(sent_to_telegram, 0) = 1")
         if created_date == "today":
             filters.append("substr(created_at, 1, 10) = ?")
             params.append(datetime.now(timezone.utc).date().isoformat())
-        if not status:
-            filters.append("COALESCE(status, 'new') IN ('new', 'contacted', 'waiting_reply')")
-        if not include_archived and not status:
+        if not include_archived and status != "archived":
             filters.append("COALESCE(status, 'new') != 'archived'")
-        if not include_rejected and not rejected_only and not status:
+        if hide_rejected and not rejected_only:
             filters.append("COALESCE(status, 'new') != 'not_relevant'")
             filters.append("COALESCE(heat_level, 'cold') != 'reject'")
-        if not include_owner_ads and not owner_ads_only:
+        if rejected_only:
+            filters.append("(COALESCE(status, 'new') = 'not_relevant' OR COALESCE(heat_level, 'cold') = 'reject')")
+        if not include_owner_ads and not owner_ads_only and not show_all:
             filters.append("COALESCE(owner_advertisement, 0) = 0")
         if religious_only:
             filters.append("religious_signal = 1")
@@ -1319,8 +1335,6 @@ class LeadStorage:
             filters.append("family_signal = 1")
         if owner_ads_only:
             filters.append("owner_advertisement = 1")
-        if rejected_only:
-            filters.append("heat_level = 'reject'")
         if budget_sensitive_only:
             filters.append("budget_sensitive = 1")
         if search:
@@ -1357,6 +1371,9 @@ class LeadStorage:
         include_archived = bool(filters.get("include_archived"))
         include_rejected = bool(filters.get("include_rejected"))
         include_owner_ads = bool(filters.get("include_owner_ads"))
+        hide_rejected = bool(filters.get("hide_rejected"))
+        telegram_sent = filters.get("telegram_sent")
+        show_all = bool(filters.get("show_all"))
         scan_run_id = filters.get("scan_run_id")
         created_date = filters.get("created_date")
         search = filters.get("search")
@@ -1388,17 +1405,19 @@ class LeadStorage:
         if scan_run_id is not None:
             clauses.append("scan_run_id = ?")
             params.append(scan_run_id)
+        if telegram_sent is True:
+            clauses.append("COALESCE(sent_to_telegram, 0) = 1")
         if created_date == "today":
             clauses.append("substr(created_at, 1, 10) = ?")
             params.append(datetime.now(timezone.utc).date().isoformat())
-        if not status:
-            clauses.append("COALESCE(status, 'new') IN ('new', 'contacted', 'waiting_reply')")
-        if not include_archived and not status:
+        if not include_archived and status != "archived":
             clauses.append("COALESCE(status, 'new') != 'archived'")
-        if not include_rejected and not rejected_only and not status:
+        if hide_rejected and not rejected_only:
             clauses.append("COALESCE(status, 'new') != 'not_relevant'")
             clauses.append("COALESCE(heat_level, 'cold') != 'reject'")
-        if not include_owner_ads and not owner_ads_only:
+        if rejected_only:
+            clauses.append("(COALESCE(status, 'new') = 'not_relevant' OR COALESCE(heat_level, 'cold') = 'reject')")
+        if not include_owner_ads and not owner_ads_only and not show_all:
             clauses.append("COALESCE(owner_advertisement, 0) = 0")
         if religious_only:
             clauses.append("religious_signal = 1")
@@ -1408,8 +1427,6 @@ class LeadStorage:
             clauses.append("family_signal = 1")
         if owner_ads_only:
             clauses.append("owner_advertisement = 1")
-        if rejected_only:
-            clauses.append("heat_level = 'reject'")
         if budget_sensitive_only:
             clauses.append("budget_sensitive = 1")
         if search:
@@ -1424,6 +1441,43 @@ class LeadStorage:
             row = connection.execute(query, params).fetchone()
         return int(row["count"]) if row else 0
 
+    def list_review_leads(self, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM leads
+                WHERE COALESCE(status, 'new') != 'archived'
+                  AND feedback_at IS NULL
+                ORDER BY datetime(created_at) DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._row_to_dict(row) for row in rows]
+
+    def update_lead_fields(self, lead_id: int, **fields: Any) -> None:
+        if not fields:
+            return
+        now = utc_now_iso()
+        fields = dict(fields)
+        fields["updated_at"] = now
+        assignments = ", ".join(f"{column} = ?" for column in fields)
+        values = list(fields.values())
+        values.append(lead_id)
+        with self._connect() as connection:
+            connection.execute(
+                f"UPDATE leads SET {assignments} WHERE id = ?",
+                values,
+            )
+            connection.execute(
+                """
+                INSERT INTO lead_events (lead_id, created_at, event_type, event_text)
+                VALUES (?, ?, 'lead_updated', ?)
+                """,
+                (lead_id, now, f"Lead fields updated: {', '.join(fields.keys())}."),
+            )
+
     def summary_stats(
         self,
         *,
@@ -1432,13 +1486,10 @@ class LeadStorage:
     ) -> dict[str, Any]:
         with self._connect() as connection:
             today_prefix = datetime.now(timezone.utc).date().isoformat()
-            visibility_filters: list[str] = ["COALESCE(owner_advertisement, 0) = 0"]
+            visibility_filters: list[str] = []
             if not include_archived:
                 visibility_filters.append("COALESCE(status, 'new') != 'archived'")
-            if not include_rejected:
-                visibility_filters.append("COALESCE(status, 'new') != 'not_relevant'")
-                visibility_filters.append("COALESCE(heat_level, 'cold') != 'reject'")
-            visible_where = " WHERE " + " AND ".join(visibility_filters)
+            visible_where = f" WHERE {' AND '.join(visibility_filters)}" if visibility_filters else ""
 
             total = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where}").fetchone()["count"])
             active_total = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status IN ('new', 'contacted', 'waiting_reply')").fetchone()["count"])
