@@ -596,6 +596,16 @@ button:hover,
   color: var(--gold);
 }
 
+.keyword-active {
+  background: rgba(212, 177, 108, 0.24);
+  border: 1px solid rgba(212, 177, 108, 0.4);
+}
+
+.quick-view-row a.keyword {
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .keyword-negative {
   background: rgba(255, 143, 97, 0.12);
   color: #ffb599;

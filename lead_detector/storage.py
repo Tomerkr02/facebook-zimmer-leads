@@ -33,6 +33,7 @@ ALLOWED_EVENT_TYPES = {
 ALLOWED_FEEDBACK_TYPES = {
     "good_lead",
     "bad_lead",
+    "perfect_match",
     "closed_successfully",
     "irrelevant",
     "too_expensive",
@@ -133,6 +134,35 @@ class LeadStorage:
             )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS training_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lead_id INTEGER NOT NULL,
+                    feedback_type TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    reviewer TEXT,
+                    lead_snapshot TEXT,
+                    ai_scores_snapshot TEXT,
+                    FOREIGN KEY (lead_id) REFERENCES leads(id)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS lead_ai_memory (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    signal_type TEXT NOT NULL,
+                    signal_value TEXT NOT NULL,
+                    positive_count INTEGER DEFAULT 0,
+                    negative_count INTEGER DEFAULT 0,
+                    vip_count INTEGER DEFAULT 0,
+                    last_seen TEXT,
+                    confidence_score REAL DEFAULT 0,
+                    UNIQUE(signal_type, signal_value)
+                )
+                """
+            )
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS scan_runs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     started_at TEXT NOT NULL,
@@ -196,6 +226,8 @@ class LeadStorage:
                 """
             )
             self._ensure_leads_columns(connection)
+            self._ensure_training_feedback_columns(connection)
+            self._ensure_lead_ai_memory_columns(connection)
             connection.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_text_hash
@@ -224,6 +256,24 @@ class LeadStorage:
                 """
                 CREATE INDEX IF NOT EXISTS idx_lead_feedback_lead_created
                 ON lead_feedback(lead_id, created_at DESC)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_training_feedback_lead_timestamp
+                ON training_feedback(lead_id, timestamp DESC)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_training_feedback_type_created
+                ON training_feedback(feedback_type, created_at DESC)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_lead_ai_memory_signal
+                ON lead_ai_memory(signal_type, confidence_score DESC)
                 """
             )
             connection.execute(
@@ -320,6 +370,44 @@ class LeadStorage:
         for column_name, definition in expected_columns.items():
             if column_name not in existing_columns:
                 connection.execute(f"ALTER TABLE leads ADD COLUMN {column_name} {definition}")
+
+    def _ensure_training_feedback_columns(self, connection: sqlite3.Connection) -> None:
+        expected_columns = {
+            "lead_id": "INTEGER",
+            "feedback_type": "TEXT",
+            "reviewer": "TEXT",
+            "created_at": "TEXT",
+            "lead_snapshot_json": "TEXT",
+            "ai_scores_snapshot_json": "TEXT",
+            "scan_id": "INTEGER",
+            "group_name": "TEXT",
+            "timestamp": "TEXT",
+            "lead_snapshot": "TEXT",
+            "ai_scores_snapshot": "TEXT",
+        }
+        existing_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(training_feedback)").fetchall()
+        }
+        for column_name, definition in expected_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(f"ALTER TABLE training_feedback ADD COLUMN {column_name} {definition}")
+
+    def _ensure_lead_ai_memory_columns(self, connection: sqlite3.Connection) -> None:
+        expected_columns = {
+            "signal_type": "TEXT",
+            "signal_value": "TEXT",
+            "positive_count": "INTEGER DEFAULT 0",
+            "negative_count": "INTEGER DEFAULT 0",
+            "vip_count": "INTEGER DEFAULT 0",
+            "last_seen": "TEXT",
+            "confidence_score": "REAL DEFAULT 0",
+        }
+        existing_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(lead_ai_memory)").fetchall()
+        }
+        for column_name, definition in expected_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(f"ALTER TABLE lead_ai_memory ADD COLUMN {column_name} {definition}")
 
     @staticmethod
     def build_text_hash(text: str) -> str:
@@ -1236,6 +1324,9 @@ class LeadStorage:
         hide_rejected: bool = False,
         telegram_sent: bool | None = None,
         show_all: bool = False,
+        vip_only: bool = False,
+        feedback_state: str | None = None,
+        matched_only: bool = False,
         scan_run_id: int | None = None,
         created_date: str | None = None,
         search: str | None = None,
@@ -1315,6 +1406,14 @@ class LeadStorage:
             params.append(scan_run_id)
         if telegram_sent is True:
             filters.append("COALESCE(sent_to_telegram, 0) = 1")
+        if vip_only:
+            filters.append("COALESCE(vip_match, 0) = 1")
+        if feedback_state == "reviewed":
+            filters.append("feedback_at IS NOT NULL")
+        elif feedback_state == "unreviewed":
+            filters.append("feedback_at IS NULL")
+        if matched_only:
+            filters.append("(COALESCE(keyword_score, 0) > 0 OR COALESCE(intent_score, 0) > 0)")
         if created_date == "today":
             filters.append("substr(created_at, 1, 10) = ?")
             params.append(datetime.now(timezone.utc).date().isoformat())
@@ -1374,6 +1473,9 @@ class LeadStorage:
         hide_rejected = bool(filters.get("hide_rejected"))
         telegram_sent = filters.get("telegram_sent")
         show_all = bool(filters.get("show_all"))
+        vip_only = bool(filters.get("vip_only"))
+        feedback_state = filters.get("feedback_state")
+        matched_only = bool(filters.get("matched_only"))
         scan_run_id = filters.get("scan_run_id")
         created_date = filters.get("created_date")
         search = filters.get("search")
@@ -1407,6 +1509,14 @@ class LeadStorage:
             params.append(scan_run_id)
         if telegram_sent is True:
             clauses.append("COALESCE(sent_to_telegram, 0) = 1")
+        if vip_only:
+            clauses.append("COALESCE(vip_match, 0) = 1")
+        if feedback_state == "reviewed":
+            clauses.append("feedback_at IS NOT NULL")
+        elif feedback_state == "unreviewed":
+            clauses.append("feedback_at IS NULL")
+        if matched_only:
+            clauses.append("(COALESCE(keyword_score, 0) > 0 OR COALESCE(intent_score, 0) > 0)")
         if created_date == "today":
             clauses.append("substr(created_at, 1, 10) = ?")
             params.append(datetime.now(timezone.utc).date().isoformat())
@@ -1448,6 +1558,7 @@ class LeadStorage:
                 SELECT *
                 FROM leads
                 WHERE COALESCE(status, 'new') != 'archived'
+                  AND COALESCE(status, 'new') != 'closed'
                   AND feedback_at IS NULL
                 ORDER BY datetime(created_at) DESC, id DESC
                 LIMIT ?
@@ -1478,6 +1589,197 @@ class LeadStorage:
                 (lead_id, now, f"Lead fields updated: {', '.join(fields.keys())}."),
             )
 
+    def training_feedback_summary(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_feedback,
+                    SUM(CASE WHEN feedback_type IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS positive_feedback,
+                    SUM(CASE WHEN feedback_type NOT IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS negative_feedback
+                FROM training_feedback
+                """
+            ).fetchone()
+            reasons = connection.execute(
+                """
+                SELECT feedback_type, COUNT(*) AS count
+                FROM training_feedback
+                WHERE feedback_type NOT IN ('good_lead', 'perfect_match', 'closed_successfully')
+                GROUP BY feedback_type
+                ORDER BY count DESC, feedback_type ASC
+                LIMIT 8
+                """
+            ).fetchall()
+        return {
+            "total_feedback": int(row["total_feedback"] or 0) if row else 0,
+            "positive_feedback": int(row["positive_feedback"] or 0) if row else 0,
+            "negative_feedback": int(row["negative_feedback"] or 0) if row else 0,
+            "common_rejection_reasons": [dict(item) for item in reasons],
+        }
+
+    def save_training_feedback(
+        self,
+        *,
+        lead_id: int,
+        feedback_type: str,
+        reviewer: str,
+        created_at: str,
+        lead_snapshot_json: str,
+        ai_scores_snapshot_json: str,
+        scan_id: int | None,
+        group_name: str | None,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO training_feedback (
+                    lead_id,
+                    feedback_type,
+                    reviewer,
+                    created_at,
+                    lead_snapshot_json,
+                    ai_scores_snapshot_json,
+                    scan_id,
+                    group_name,
+                    timestamp,
+                    lead_snapshot,
+                    ai_scores_snapshot
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lead_id,
+                    feedback_type,
+                    reviewer,
+                    created_at,
+                    lead_snapshot_json,
+                    ai_scores_snapshot_json,
+                    scan_id,
+                    group_name,
+                    created_at,
+                    lead_snapshot_json,
+                    ai_scores_snapshot_json,
+                ),
+            )
+
+    def upsert_ai_memory_signal(
+        self,
+        *,
+        signal_type: str,
+        signal_value: str,
+        positive_delta: int = 0,
+        negative_delta: int = 0,
+        vip_delta: int = 0,
+        last_seen: str,
+        confidence_score: float,
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO lead_ai_memory (
+                    signal_type,
+                    signal_value,
+                    positive_count,
+                    negative_count,
+                    vip_count,
+                    last_seen,
+                    confidence_score
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(signal_type, signal_value)
+                DO UPDATE SET
+                    positive_count = positive_count + excluded.positive_count,
+                    negative_count = negative_count + excluded.negative_count,
+                    vip_count = vip_count + excluded.vip_count,
+                    last_seen = excluded.last_seen,
+                    confidence_score = excluded.confidence_score
+                """,
+                (
+                    signal_type,
+                    signal_value,
+                    positive_delta,
+                    negative_delta,
+                    vip_delta,
+                    last_seen,
+                    confidence_score,
+                ),
+            )
+
+    def get_ai_memory_signal(self, signal_type: str, signal_value: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM lead_ai_memory
+                WHERE signal_type = ? AND signal_value = ?
+                LIMIT 1
+                """,
+                (signal_type, signal_value),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def list_ai_memory_signals(
+        self,
+        *,
+        signal_type: str | None = None,
+        order_by: str = "confidence_score",
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        safe_order = {
+            "confidence_score": "confidence_score DESC, vip_count DESC, positive_count DESC",
+            "positive_count": "positive_count DESC, vip_count DESC, confidence_score DESC",
+            "negative_count": "negative_count DESC, confidence_score ASC",
+            "vip_count": "vip_count DESC, confidence_score DESC",
+            "last_seen": "datetime(last_seen) DESC",
+        }.get(order_by, "confidence_score DESC")
+        query = "SELECT * FROM lead_ai_memory"
+        params: list[Any] = []
+        if signal_type:
+            query += " WHERE signal_type = ?"
+            params.append(signal_type)
+        query += f" ORDER BY {safe_order} LIMIT ?"
+        params.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+    def learning_analytics(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            group_rows = connection.execute(
+                """
+                SELECT
+                    COALESCE(group_name, 'לא ידוע') AS group_name,
+                    SUM(CASE WHEN feedback_type IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS positive_count,
+                    SUM(CASE WHEN feedback_type NOT IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS negative_count,
+                    COUNT(*) AS total_count
+                FROM training_feedback
+                GROUP BY COALESCE(group_name, 'לא ידוע')
+                ORDER BY positive_count DESC, total_count DESC, group_name ASC
+                LIMIT 12
+                """
+            ).fetchall()
+            reviewer_rows = connection.execute(
+                """
+                SELECT
+                    COALESCE(reviewer, 'unknown') AS reviewer,
+                    COUNT(*) AS total_reviews,
+                    SUM(CASE WHEN feedback_type IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS positive_reviews,
+                    SUM(CASE WHEN feedback_type NOT IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS negative_reviews
+                FROM training_feedback
+                GROUP BY COALESCE(reviewer, 'unknown')
+                ORDER BY total_reviews DESC, reviewer ASC
+                LIMIT 8
+                """
+            ).fetchall()
+        return {
+            "most_successful_signals": self.list_ai_memory_signals(order_by="positive_count", limit=12),
+            "most_rejected_signals": self.list_ai_memory_signals(order_by="negative_count", limit=12),
+            "top_vip_phrases": self.list_ai_memory_signals(order_by="vip_count", limit=12),
+            "group_quality_ranking": [dict(row) for row in group_rows],
+            "reviewer_patterns": [dict(row) for row in reviewer_rows],
+            "training_feedback": self.training_feedback_summary(),
+        }
+
     def summary_stats(
         self,
         *,
@@ -1498,6 +1800,11 @@ class LeadStorage:
             new_leads = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'new'").fetchone()["count"])
             contacted = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status IN ('contacted', 'waiting_reply')").fetchone()["count"])
             closed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'closed'").fetchone()["count"])
+            vip = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(vip_match, 0) = 1").fetchone()["count"])
+            reviewed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND feedback_at IS NOT NULL").fetchone()["count"])
+            unreviewed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND feedback_at IS NULL").fetchone()["count"])
+            telegram = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(sent_to_telegram, 0) = 1").fetchone()["count"])
+            matches = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND (COALESCE(keyword_score, 0) > 0 OR COALESCE(intent_score, 0) > 0)").fetchone()["count"])
             rejected = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'not_relevant' OR heat_level = 'reject' OR owner_advertisement = 1").fetchone()["count"])
             archived = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'archived'").fetchone()["count"])
             owner_ads = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE owner_advertisement = 1").fetchone()["count"])
@@ -1516,6 +1823,11 @@ class LeadStorage:
             "new_leads": new_leads,
             "contacted": contacted,
             "closed": closed,
+            "vip_leads": vip,
+            "reviewed": reviewed,
+            "unreviewed": unreviewed,
+            "telegram_leads": telegram,
+            "matched_leads": matches,
             "rejected": rejected,
             "archived": archived,
             "owner_ads": owner_ads,
@@ -1791,6 +2103,7 @@ class LeadStorage:
         lead_id: int,
         feedback_type: str,
         feedback_reason: str | None = None,
+        reviewer: str | None = None,
     ) -> None:
         if feedback_type not in ALLOWED_FEEDBACK_TYPES:
             raise ValueError(f"Unsupported feedback: {feedback_type}")
@@ -1812,7 +2125,7 @@ class LeadStorage:
                 "vibe_score": lead_snapshot.get("vibe_score"),
                 "ai_score": lead_snapshot.get("ai_score"),
             }
-            feedback_label = "good" if feedback_type in {"good_lead", "closed_successfully"} else "bad"
+            feedback_label = "good" if feedback_type in {"good_lead", "perfect_match", "closed_successfully"} else "bad"
             connection.execute(
                 """
                 UPDATE leads
@@ -1835,6 +2148,37 @@ class LeadStorage:
                     feedback_reason,
                     json.dumps(scores_snapshot, ensure_ascii=False),
                     json.dumps(lead_snapshot, ensure_ascii=False),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO training_feedback (
+                    lead_id,
+                    feedback_type,
+                    reviewer,
+                    created_at,
+                    lead_snapshot_json,
+                    ai_scores_snapshot_json,
+                    scan_id,
+                    group_name,
+                    timestamp,
+                    lead_snapshot,
+                    ai_scores_snapshot
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lead_id,
+                    feedback_type,
+                    reviewer or "local_reviewer",
+                    now,
+                    json.dumps(lead_snapshot, ensure_ascii=False),
+                    json.dumps(scores_snapshot, ensure_ascii=False),
+                    lead_snapshot.get("scan_run_id"),
+                    lead_snapshot.get("group_name"),
+                    now,
+                    json.dumps(lead_snapshot, ensure_ascii=False),
+                    json.dumps(scores_snapshot, ensure_ascii=False),
                 ),
             )
             connection.execute(

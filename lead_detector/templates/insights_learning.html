@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Learning Insights{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">AI Learning Analytics</p>
+      <h2>תובנות למידה</h2>
+    </div>
+    <a class="button-link secondary" href="{{ url_for('insights_page') }}">חזרה לתובנות</a>
+  </div>
+  <div class="stats-grid kpi-grid">
+    <div class="stat-card stat-strong"><strong>{{ training.total_feedback }}</strong><span>סה"כ feedback events</span></div>
+    <div class="stat-card"><strong>{{ training.positive_feedback }}</strong><span>Positive learning</span></div>
+    <div class="stat-card reject"><strong>{{ training.negative_feedback }}</strong><span>Negative learning</span></div>
+    <div class="stat-card"><strong>{{ stats.vip_leads }}</strong><span>VIP leads in system</span></div>
+  </div>
+</section>
+
+<section class="dual-grid scans-layout">
+  <article class="panel">
+    <div class="panel-head"><div><p class="eyebrow">Positive Signals</p><h2>signals מצליחים</h2></div></div>
+    <div class="mini-table">
+      {% for item in learning_insights.most_successful_signals %}
+      <div class="mini-table-row">
+        <strong>{{ item.signal_value }}</strong>
+        <span>{{ item.signal_type }}</span>
+        <span>+{{ item.positive_count }} / VIP {{ item.vip_count }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין עדיין data מספק.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head"><div><p class="eyebrow">Negative Signals</p><h2>signals נדחים</h2></div></div>
+    <div class="mini-table">
+      {% for item in learning_insights.most_rejected_signals %}
+      <div class="mini-table-row">
+        <strong>{{ item.signal_value }}</strong>
+        <span>{{ item.signal_type }}</span>
+        <span>-{{ item.negative_count }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין עדיין data מספק.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="dual-grid scans-layout">
+  <article class="panel">
+    <div class="panel-head"><div><p class="eyebrow">VIP Phrases</p><h2>ביטויי VIP</h2></div></div>
+    <div class="mini-table">
+      {% for item in learning_insights.top_vip_phrases %}
+      <div class="mini-table-row">
+        <strong>{{ item.signal_value }}</strong>
+        <span>{{ item.signal_type }}</span>
+        <span>VIP {{ item.vip_count }} | confidence {{ item.confidence_score }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין עדיין data מספק.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head"><div><p class="eyebrow">Rejection Reasons</p><h2>סיבות דחייה מובילות</h2></div></div>
+    <div class="mini-table">
+      {% for item in training.common_rejection_reasons %}
+      <div class="mini-table-row">
+        <strong>{{ item.feedback_type }}</strong>
+        <span>{{ item.count }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין עדיין data מספק.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="dual-grid scans-layout">
+  <article class="panel">
+    <div class="panel-head"><div><p class="eyebrow">Group Quality</p><h2>דירוג קבוצות</h2></div></div>
+    <div class="mini-table">
+      {% for item in learning_insights.group_quality_ranking %}
+      <div class="mini-table-row">
+        <strong>{{ item.group_name }}</strong>
+        <span>Positive {{ item.positive_count }}</span>
+        <span>Negative {{ item.negative_count }}</span>
+        <span>Total {{ item.total_count }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין עדיין data מספק.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head"><div><p class="eyebrow">Reviewer Patterns</p><h2>דפוסי review</h2></div></div>
+    <div class="mini-table">
+      {% for item in learning_insights.reviewer_patterns %}
+      <div class="mini-table-row">
+        <strong>{{ item.reviewer }}</strong>
+        <span>Total {{ item.total_reviews }}</span>
+        <span>Positive {{ item.positive_reviews }}</span>
+        <span>Negative {{ item.negative_reviews }}</span>
+      </div>
+      {% else %}
+      <p class="muted">אין עדיין data מספק.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

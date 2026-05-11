@@ -11,6 +11,8 @@
   </div>
   <div class="live-badges">
     <span class="live-pill">ממתינים לבדיקה: {{ leads|length }}</span>
+    <span class="live-pill">Positive feedback: {{ training.positive_feedback }}</span>
+    <span class="live-pill">Negative feedback: {{ training.negative_feedback }}</span>
     <a class="button-link secondary" href="{{ url_for('leads_page') }}">חזרה ללידים</a>
   </div>
 </section>
@@ -33,13 +35,37 @@
           <h3><a href="{{ url_for('lead_detail', lead_id=lead.id) }}">{{ lead.group_name or "קבוצה לא מזוהה" }}</a></h3>
           <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
         </div>
-        <div class="badge-stack">
+      <div class="badge-stack">
+          {% if lead.perfect_match %}<span class="vip-pill">👑 PERFECT MATCH</span>{% endif %}
           <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
           <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
         </div>
       </div>
 
+      <div class="metric-row">
+        <span>Intent <strong>{{ lead.intent_score if lead.intent_score is not none else "-" }}</strong></span>
+        <span>Fit <strong>{{ lead.fit_score if lead.fit_score is not none else "-" }}</strong></span>
+        <span>Vibe <strong>{{ lead.vibe_score if lead.vibe_score is not none else "-" }}</strong></span>
+        <span>Heat <strong>{{ lead.heat_score if lead.heat_score is not none else "-" }}</strong></span>
+        <span>Conversion <strong>{{ lead.conversion_score if lead.conversion_score is not none else "-" }}</strong></span>
+        <span>Review Priority <strong>{{ lead.review_priority_score if lead.review_priority_score is not none else "-" }}</strong></span>
+      </div>
       <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:360] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 360 %}...{% endif %}</p>
+
+      <section class="reply-block">
+        <strong>למה ה-AI חשב שזה רלוונטי</strong>
+        <div class="check-list">
+          {% for item in lead.intent_reasons_list[:6] %}
+          <div>✔ {{ item }}</div>
+          {% else %}
+          <div>{{ lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "אין עדיין הסבר שמור" }}</div>
+          {% endfor %}
+        </div>
+      </section>
+      <section class="reply-block">
+        <strong>למה לבדוק עכשיו</strong>
+        <p>{{ lead.review_priority_reason or "אין סיבה מיוחדת" }}</p>
+      </section>
 
       <div class="keyword-list">
         {% if lead.intent_reasons_list %}
@@ -55,35 +81,39 @@
       <div class="action-bar vertical">
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="good_lead">
-          <button type="submit" class="ghost-button">👍 רלוונטי</button>
+          <button type="submit" class="ghost-button">👍 Good Lead</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="perfect_match">
+          <button type="submit" class="ghost-button">👑 Perfect Match</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="irrelevant">
-          <button type="submit" class="ghost-button">👎 לא רלוונטי</button>
+          <button type="submit" class="ghost-button">👎 Bad Lead</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="pets">
-          <button type="submit" class="ghost-button">🐶 חיות</button>
+          <button type="submit" class="ghost-button">🐶 Pets</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="party_event">
-          <button type="submit" class="ghost-button">🎉 מסיבה/אירוע</button>
+          <button type="submit" class="ghost-button">🎉 Party</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="too_large">
-          <button type="submit" class="ghost-button">👥 גדול מדי</button>
+          <button type="submit" class="ghost-button">👥 Too Large</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="too_expensive">
-          <button type="submit" class="ghost-button">💸 זול מדי</button>
+          <button type="submit" class="ghost-button">💸 Too Cheap</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="bad_location">
-          <button type="submit" class="ghost-button">📍 אזור לא מתאים</button>
+          <button type="submit" class="ghost-button">📍 Bad Area</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="owner_ad">
-          <button type="submit" class="ghost-button">🏠 פרסום של בעל צימר</button>
+          <button type="submit" class="ghost-button">🏠 Owner Ad</button>
         </form>
       </div>
     </article>

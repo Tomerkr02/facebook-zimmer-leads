@@ -6,6 +6,7 @@ from typing import Any
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, url_for
 
+from ai_learning import AILearningEngine
 from config import load_settings
 from scraper import ScanOptions, run_scan
 from storage import ALLOWED_LEAD_STATUSES, LeadStorage, utc_now_iso
@@ -13,6 +14,7 @@ from storage import ALLOWED_LEAD_STATUSES, LeadStorage, utc_now_iso
 
 settings = load_settings()
 storage = LeadStorage(settings.resolved_database_path)
+learning_engine = AILearningEngine(storage)
 app = Flask(__name__)
 app.logger.info("DB_PATH | %s", settings.resolved_database_path)
 app.logger.info("Current leads count: %s", storage.count_leads())
@@ -78,6 +80,7 @@ POOL_LABELS = {
 FEEDBACK_LABELS = {
     "good_lead": "ליד טוב",
     "bad_lead": "ליד חלש",
+    "perfect_match": "התאמה מושלמת",
     "closed_successfully": "נסגר בהצלחה",
     "irrelevant": "לא רלוונטי",
     "too_expensive": "יקר מדי",
@@ -299,7 +302,7 @@ def _filters_from_request() -> dict[str, str | int]:
     requested_type = (request.args.get("type") or "").strip()
     created_date = "today" if (request.args.get("date") or "").strip() == "today" else ""
     view = (request.args.get("view") or "").strip()
-    return {
+    filters = {
         "status": status,
         "heat_level": heat_level,
         "guest_type": (request.args.get("guest_type") or "").strip(),
@@ -321,11 +324,25 @@ def _filters_from_request() -> dict[str, str | int]:
         "include_rejected": "1" if request.args.get("include_rejected") else "",
         "telegram_sent": "1" if request.args.get("telegram_sent") else "",
         "show_all": "1" if request.args.get("show_all") or view == "all_active" else "",
+        "vip_only": "1" if request.args.get("vip_only") else "",
+        "feedback_state": (request.args.get("feedback_state") or "").strip(),
+        "matched_only": "1" if request.args.get("matched_only") else "",
         "scan_run_id": request.args.get("scan_run_id", default=None, type=int),
         "search": (request.args.get("search") or "").strip(),
         "sort": (request.args.get("sort") or "newest").strip(),
         "limit": limit,
     }
+    if view == "vip":
+        filters["vip_only"] = "1"
+    elif view == "reviewed":
+        filters["feedback_state"] = "reviewed"
+    elif view == "unreviewed":
+        filters["feedback_state"] = "unreviewed"
+    elif view == "telegram":
+        filters["telegram_sent"] = "1"
+    elif view == "matches":
+        filters["matched_only"] = "1"
+    return filters
 
 
 def _lead_query_kwargs(
@@ -360,6 +377,9 @@ def _lead_query_kwargs(
         "include_owner_ads": force_include_owner_ads or show_all or bool(filters.get("owner_ads_only")),
         "telegram_sent": True if filters.get("telegram_sent") else None,
         "show_all": show_all,
+        "vip_only": bool(filters.get("vip_only")),
+        "feedback_state": filters.get("feedback_state") or None,
+        "matched_only": bool(filters.get("matched_only")),
         "scan_run_id": filters.get("scan_run_id"),
         "created_date": filters.get("created_date") or None,
         "search": filters.get("search") or None,
@@ -371,6 +391,8 @@ def _dashboard_context() -> dict[str, object]:
     return {
         "stats": storage.summary_stats(),
         "insights": storage.insights(),
+        "training": storage.training_feedback_summary(),
+        "learning_insights": learning_engine.learning_analytics(),
         "status_counts": storage.status_counts(),
         "filter_options": storage.filter_options(),
         "statuses": sorted(ALLOWED_LEAD_STATUSES),
@@ -536,7 +558,7 @@ def rejected_page():
 
 @app.route("/review")
 def review_page():
-    leads = _decorate_leads(storage.list_review_leads(limit=120))
+    leads = learning_engine.enrich_review_leads(_decorate_leads(storage.list_review_leads(limit=120)))
     return render_template("review.html", leads=leads, **_dashboard_context())
 
 
@@ -615,6 +637,11 @@ def insights_page():
     return render_template("insights.html", groups=storage.group_performance(), **_dashboard_context())
 
 
+@app.route("/insights/learning")
+def learning_insights_page():
+    return render_template("insights_learning.html", groups=storage.group_performance(), **_dashboard_context())
+
+
 @app.route("/groups")
 def groups_page():
     return render_template("groups.html", groups=storage.group_performance(), **_dashboard_context())
@@ -685,9 +712,19 @@ def lead_status_update(lead_id: int):
     if status == "not_relevant":
         reason = (request.form.get("feedback_reason") or "irrelevant").strip()
         feedback_type = reason if reason in FEEDBACK_LABELS else "irrelevant"
-        storage.add_lead_feedback(lead_id, feedback_type, feedback_reason=reason)
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type=feedback_type,
+            reviewer="tomer",
+            feedback_reason=reason,
+        )
     elif status == "closed":
-        storage.add_lead_feedback(lead_id, "closed_successfully", feedback_reason="closed")
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type="closed_successfully",
+            reviewer="tomer",
+            feedback_reason="closed",
+        )
     next_url = request.form.get("next", "").strip()
     if next_url:
         return redirect(next_url)
@@ -706,9 +743,20 @@ def lead_feedback_update(lead_id: int):
     feedback_label = request.form.get("feedback", "").strip()
     feedback_reason = (request.form.get("feedback_reason") or "").strip() or None
     if feedback_label in {"good", "bad"}:
-        storage.update_lead_feedback(lead_id, feedback_label)
+        mapped = "good_lead" if feedback_label == "good" else "bad_lead"
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type=mapped,
+            reviewer="tomer",
+            feedback_reason=feedback_reason or feedback_label,
+        )
     else:
-        storage.add_lead_feedback(lead_id, feedback_label, feedback_reason=feedback_reason)
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type=feedback_label,
+            reviewer="tomer",
+            feedback_reason=feedback_reason,
+        )
     next_url = request.form.get("next", "").strip()
     if next_url:
         return redirect(next_url)
@@ -720,6 +768,13 @@ def review_feedback_update(lead_id: int):
     action = (request.form.get("action") or "").strip()
     action_map: dict[str, dict[str, Any]] = {
         "good_lead": {"feedback_type": "good_lead"},
+        "perfect_match": {
+            "feedback_type": "perfect_match",
+            "fields": {
+                "vip_match": 1,
+                "short_reason_he": "סומן ידנית כ-PERFECT MATCH על ידי Tomer.",
+            },
+        },
         "irrelevant": {"feedback_type": "irrelevant", "status": "not_relevant"},
         "pets": {
             "feedback_type": "pets",
@@ -766,10 +821,11 @@ def review_feedback_update(lead_id: int):
         storage.update_lead_fields(lead_id, **fields)
     if selected.get("status"):
         storage.update_lead_status(lead_id, str(selected["status"]))
-    storage.add_lead_feedback(
-        lead_id,
-        str(selected["feedback_type"]),
+    learning_engine.record_review_feedback(
+        lead_id=lead_id,
+        feedback_type=str(selected["feedback_type"]),
         feedback_reason=action,
+        reviewer="tomer",
     )
     return redirect(url_for("review_page"))
 
