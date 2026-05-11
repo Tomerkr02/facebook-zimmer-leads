@@ -35,6 +35,8 @@ def build_alert_message(
     ai_score: int | None,
     intent_score: int | None,
     heat_score: int | None,
+    heat_label: str | None,
+    heat_reasons: list[str] | None,
     conversion_score: int | None,
     vibe_score: int | None,
     heat_level: str | None,
@@ -56,12 +58,17 @@ def build_alert_message(
     reason_text = ai_reason_he or (ai_result.reason_he if ai_result else "ליד שעבר סינון מילות מפתח.")
     reply_text = suggested_reply_he or (ai_result.suggested_reply_he if ai_result else "לא זמין")
     heat_text = HEAT_LABELS.get((heat_level or "").strip().lower(), heat_level or "-")
+    compact_heat = "HOT" if (heat_label or "").lower() == "hot" else "WARM" if (heat_label or "").lower() == "warm" else "COLD"
+    short_reason = " + ".join((heat_reasons or [])[:3]) or (fit_reason_he or reason_text)
+    hot_perfect = bool((heat_label or "").lower() == "hot" and heat_level == "ultra_hot")
 
     return (
         "🔥 ליד חדש לצימר\n\n"
         f"Lead ID: {lead_id}\n"
         f"סטטוס: {status}\n\n"
-        f"{heat_text}\n\n"
+        f"{'👑 HOT PERFECT MATCH' if hot_perfect else heat_text}\n"
+        f"Heat: {heat_score if heat_score is not None else '-'} ({compact_heat})\n"
+        f"Reason: {short_reason}\n\n"
         f"למה זוהה כליד: {match_result.why_detected_he or '-'}\n"
         f"למה מתאים ל-Royal Water Villa: {fit_reason_he or '-'}\n"
         f"Intent Score: {intent_score if intent_score is not None else match_result.intent_score}\n"
@@ -69,7 +76,7 @@ def build_alert_message(
         f"Heat Score: {heat_score if heat_score is not None else '-'}\n"
         f"Conversion Score: {conversion_score if conversion_score is not None else '-'}\n"
         f"Vibe Score: {vibe_score if vibe_score is not None else '-'}\n"
-        f"רמת חום: {heat_level or '-'}\n"
+        f"רמת חום: {heat_label or heat_level or '-'}\n"
         f"סוג אורח: {guest_type or '-'}\n"
         f"דחיפות: {urgency or '-'}\n"
         f"אזור: {requested_area or '-'}\n"

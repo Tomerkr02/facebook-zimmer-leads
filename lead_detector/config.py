@@ -29,6 +29,14 @@ def parse_group_urls(raw_value: str) -> list[str]:
     return urls
 
 
+def env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    cleaned = value.strip()
+    return cleaned if cleaned else default
+
+
 @dataclass(frozen=True)
 class Settings:
     telegram_bot_token: str
@@ -39,6 +47,7 @@ class Settings:
     headless: bool
     max_scrolls: int
     posts_per_group_limit: int
+    fb_posts_per_group: int
     group_scan_limit: int
     min_delay_seconds: float
     max_delay_seconds: float
@@ -71,20 +80,21 @@ def load_settings() -> Settings:
             DEFAULT_DB_PATH,
         ),
         headless=os.getenv("HEADLESS", "true").strip().lower() in {"1", "true", "yes"},
-        max_scrolls=int(os.getenv("MAX_SCROLLS", "8")),
-        posts_per_group_limit=int(os.getenv("POSTS_PER_GROUP_LIMIT", "80")),
-        group_scan_limit=int(os.getenv("GROUP_SCAN_LIMIT", "0")),
-        min_delay_seconds=float(os.getenv("MIN_DELAY_SECONDS", "2.0")),
-        max_delay_seconds=float(os.getenv("MAX_DELAY_SECONDS", "5.0")),
-        min_keyword_score=int(os.getenv("MIN_KEYWORD_SCORE", "4")),
+        max_scrolls=int(env_or_default("MAX_SCROLLS", "8")),
+        posts_per_group_limit=int(env_or_default("FB_POSTS_PER_GROUP", env_or_default("POSTS_PER_GROUP_LIMIT", "100"))),
+        fb_posts_per_group=int(env_or_default("FB_POSTS_PER_GROUP", env_or_default("POSTS_PER_GROUP_LIMIT", "100"))),
+        group_scan_limit=int(env_or_default("GROUP_SCAN_LIMIT", "0")),
+        min_delay_seconds=float(env_or_default("MIN_DELAY_SECONDS", "2.0")),
+        max_delay_seconds=float(env_or_default("MAX_DELAY_SECONDS", "5.0")),
+        min_keyword_score=int(env_or_default("MIN_KEYWORD_SCORE", "4")),
         enable_ai_scoring=os.getenv("ENABLE_AI_SCORING", "false").strip().lower()
         in {"1", "true", "yes"},
         openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
-        ai_min_score=int(os.getenv("AI_MIN_SCORE", "7")),
+        ai_min_score=int(env_or_default("AI_MIN_SCORE", "7")),
         debug_matching=os.getenv("DEBUG_MATCHING", "false").strip().lower()
         in {"1", "true", "yes"},
-        followup_after_hours=int(os.getenv("FOLLOWUP_AFTER_HOURS", "24")),
-        log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
+        followup_after_hours=int(env_or_default("FOLLOWUP_AFTER_HOURS", "24")),
+        log_level=env_or_default("LOG_LEVEL", "INFO").upper(),
     )
 
     logging.basicConfig(

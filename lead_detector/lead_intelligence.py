@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from typing import Any
 from urllib import error, request
 
@@ -63,6 +64,8 @@ class LeadIntelligenceResult:
     intent_score: int
     fit_score: int
     heat_score: int
+    heat_label: str
+    heat_reasons_json: list[str]
     conversion_score: int
     vibe_score: int
     heat_level: str
@@ -151,7 +154,23 @@ def _required_or_preferred_area(text: str) -> tuple[str, str, str]:
     return "unknown", "unknown", "unknown"
 
 
-def build_rule_based_intelligence(cleaned_text: str, matched_keywords: list[str] | None = None) -> LeadIntelligenceResult:
+def _post_freshness_score(post_timestamp: str | None) -> tuple[int, str | None]:
+    raw = (post_timestamp or "").strip()
+    if not raw:
+        return 0, None
+    freshness_matches = ["דקה", "דקות", "minute", "minutes", "שעה", "שעות", "hour", "hours", "today", "היום", "אתמול", "yesterday"]
+    if any(token in raw.lower() for token in freshness_matches):
+        return 10, "Posted recently"
+    return 0, None
+
+
+def build_rule_based_intelligence(
+    cleaned_text: str,
+    matched_keywords: list[str] | None = None,
+    *,
+    post_timestamp: str | None = None,
+    repeated_author_count: int = 0,
+) -> LeadIntelligenceResult:
     text = _normalize(f"{cleaned_text} {' '.join(matched_keywords or [])}")
     bad_fit_reasons: list[str] = []
 
@@ -305,16 +324,52 @@ def build_rule_based_intelligence(cleaned_text: str, matched_keywords: list[str]
         fit_score -= 4
     fit_score = max(1, min(10, fit_score))
 
-    heat_score = 2
+    heat_reasons: list[str] = []
+    heat_score = 35
+    freshness_bonus, freshness_reason = _post_freshness_score(post_timestamp)
+    heat_score += freshness_bonus
+    if freshness_reason:
+        heat_reasons.append(freshness_reason)
     if urgency in {"today", "tomorrow"}:
-        heat_score += 4
+        heat_score += 22
+        heat_reasons.append("Urgent today/tomorrow request")
     elif urgency in {"weekend", "shabbat"}:
-        heat_score += 3
+        heat_score += 16
+        heat_reasons.append("Weekend urgency detected")
     elif urgency == "date_specific":
-        heat_score += 2
-    if _contains_any(text, ["ממחר", "לילה אחד", "שישי שבת"]):
-        heat_score += 1
-    heat_score = max(1, min(10, heat_score))
+        heat_score += 10
+        heat_reasons.append("Date-specific request")
+    if _contains_any(text, ["דחוף", "עכשיו", "מהרגע להרגע", "urgent", "last minute", "tonight"]):
+        heat_score += 16
+        heat_reasons.append("Strong urgency wording")
+    if _contains_any(text, ["לילה אחד", "לילה", "tonight"]):
+        heat_score += 8
+        heat_reasons.append("Short-stay / one-night request")
+    if pool_requirement_strength == "hard":
+        heat_score += 10
+        heat_reasons.append("Private pool required")
+    elif pool_intent == "private_pool":
+        heat_score += 6
+        heat_reasons.append("Private pool requested")
+    if guest_type in {"couple", "religious_couple", "romantic_couple", "couple_with_kids", "small_family"}:
+        heat_score += 8
+        heat_reasons.append("Good guest-size fit")
+    if religious_signal or privacy_signal:
+        heat_score += 8
+        heat_reasons.append("Religious/privacy signal found")
+    if repeated_author_count > 1:
+        heat_score += 6
+        heat_reasons.append("Repeated posting by same author")
+    if budget_sensitive:
+        heat_score -= 16
+        heat_reasons.append("Budget-sensitive request")
+    if _contains_any(text, ["עד 500", "עד 700", "הכי זול"]):
+        heat_score -= 18
+        heat_reasons.append("Very low budget signal")
+    if any(reason in {"event_or_party", "too_large", "north_only", "eilat_only", "pets_not_allowed"} for reason in bad_fit_reasons):
+        heat_score -= 24
+        heat_reasons.append("Bad fit signal lowered urgency value")
+    heat_score = max(0, min(100, heat_score))
 
     vibe_score = 2
     if romantic_signal:
@@ -330,7 +385,7 @@ def build_rule_based_intelligence(cleaned_text: str, matched_keywords: list[str]
         conversion_score += 2
     if fit_score >= 7:
         conversion_score += 2
-    if heat_score >= 7:
+    if heat_score >= 80:
         conversion_score += 1
     if budget_sensitive:
         conversion_score -= 2
@@ -366,14 +421,15 @@ def build_rule_based_intelligence(cleaned_text: str, matched_keywords: list[str]
 
     if owner_advertisement or pet_request or guest_type == "large_group" or any(reason in {"event_or_party", "too_large", "north_only", "eilat_only"} for reason in bad_fit_reasons):
         heat_level = "reject"
-    elif intent_score >= 8 and fit_score >= 8 and (religious_signal or romantic_signal or pool_requirement_strength == "hard"):
+    elif vip_match and heat_score >= 80:
         heat_level = "ultra_hot"
-    elif intent_score >= 7 and fit_score >= 7:
+    elif heat_score >= 80:
         heat_level = "hot"
-    elif intent_score >= 5 and fit_score >= 5:
+    elif heat_score >= 50:
         heat_level = "warm"
     else:
         heat_level = "cold"
+    heat_label = "hot" if heat_score >= 80 else "warm" if heat_score >= 50 else "cold"
 
     fit_reason_bits = []
     if guest_type in {"couple", "religious_couple", "romantic_couple"}:
@@ -409,7 +465,7 @@ def build_rule_based_intelligence(cleaned_text: str, matched_keywords: list[str]
         conversion_reason_he = "פוטנציאל סגירה נמוך בגלל חוסר התאמה מהותי."
 
     ai_explanation_he = (
-        f"Intent {intent_score}/10, Fit {fit_score}/10, Heat {heat_score}/10, "
+        f"Intent {intent_score}/10, Fit {fit_score}/10, Heat {heat_score}/100, "
         f"Conversion {conversion_score}/10, Vibe {vibe_score}/10. "
         f"הפוסט סווג כ-{lead_type} בגלל: {fit_reason_he or reject_reason_he}."
     )
@@ -466,6 +522,8 @@ def build_rule_based_intelligence(cleaned_text: str, matched_keywords: list[str]
         intent_score=intent_score,
         fit_score=fit_score,
         heat_score=heat_score,
+        heat_label=heat_label,
+        heat_reasons_json=heat_reasons[:6],
         conversion_score=conversion_score,
         vibe_score=vibe_score,
         heat_level=heat_level,
@@ -558,13 +616,20 @@ def analyze_lead_intelligence(
     matched_keywords: list[str] | None,
     enable_ai_scoring: bool,
     openai_api_key: str,
+    post_timestamp: str | None = None,
+    repeated_author_count: int = 0,
 ) -> LeadIntelligenceResult:
     if enable_ai_scoring and openai_api_key:
         try:
             return score_lead_intelligence_with_ai(openai_api_key, cleaned_text)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LEAD_INTELLIGENCE_AI_FAILED | error=%s", exc)
-    return build_rule_based_intelligence(cleaned_text, matched_keywords)
+    return build_rule_based_intelligence(
+        cleaned_text,
+        matched_keywords,
+        post_timestamp=post_timestamp,
+        repeated_author_count=repeated_author_count,
+    )
 
 
 def to_dict(result: LeadIntelligenceResult) -> dict[str, Any]:

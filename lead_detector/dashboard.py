@@ -25,7 +25,9 @@ URGENCIES = ["today", "tomorrow", "weekend", "shabbat", "date_specific", "flexib
 SORT_OPTIONS: dict[str, str] = {
     "priority": "Priority inbox",
     "newest": "החדשים ביותר",
+    "heat_score": "Heat score גבוה",
     "fit_score": "ציון התאמה גבוה",
+    "vip_first": "VIP first",
     "conversion_score": "פוטנציאל סגירה",
     "hottest": "הכי חמים",
     "urgency": "הכי דחופים",
@@ -299,12 +301,14 @@ def _filters_from_request() -> dict[str, str | int]:
     limit = max(1, min(limit, 500))
     status = (request.args.get("status") or "").strip()
     heat_level = (request.args.get("heat_level") or request.args.get("heat") or "").strip()
+    heat_label = (request.args.get("heat_label") or "").strip()
     requested_type = (request.args.get("type") or "").strip()
     created_date = "today" if (request.args.get("date") or "").strip() == "today" else ""
     view = (request.args.get("view") or "").strip()
     filters = {
         "status": status,
         "heat_level": heat_level,
+        "heat_label": heat_label,
         "guest_type": (request.args.get("guest_type") or "").strip(),
         "urgency": (request.args.get("urgency") or "").strip(),
         "requested_area": (request.args.get("requested_area") or "").strip(),
@@ -329,7 +333,7 @@ def _filters_from_request() -> dict[str, str | int]:
         "matched_only": "1" if request.args.get("matched_only") else "",
         "scan_run_id": request.args.get("scan_run_id", default=None, type=int),
         "search": (request.args.get("search") or "").strip(),
-        "sort": (request.args.get("sort") or "newest").strip(),
+        "sort": (request.args.get("sort") or "heat_score").strip(),
         "limit": limit,
     }
     if view == "vip":
@@ -342,6 +346,18 @@ def _filters_from_request() -> dict[str, str | int]:
         filters["telegram_sent"] = "1"
     elif view == "matches":
         filters["matched_only"] = "1"
+    elif view == "hot":
+        filters["heat_label"] = "hot"
+    elif view == "warm":
+        filters["heat_label"] = "warm"
+    elif view == "cold":
+        filters["heat_label"] = "cold"
+    elif view == "vip_hot":
+        filters["vip_only"] = "1"
+        filters["heat_label"] = "hot"
+    elif view == "unreviewed_hot":
+        filters["feedback_state"] = "unreviewed"
+        filters["heat_label"] = "hot"
     return filters
 
 
@@ -360,6 +376,7 @@ def _lead_query_kwargs(
     return {
         "status": force_status if force_status is not None else (filters.get("status") or None),
         "heat_level": filters.get("heat_level") or None,
+        "heat_label": filters.get("heat_label") or None,
         "guest_type": filters.get("guest_type") or None,
         "urgency": filters.get("urgency") or None,
         "requested_area": filters.get("requested_area") or None,

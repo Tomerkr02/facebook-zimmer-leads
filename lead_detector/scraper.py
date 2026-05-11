@@ -121,6 +121,9 @@ class GroupTarget:
 class GroupScanStats:
     group_name: str
     group_url: str
+    requested_scan_depth: int = 0
+    actual_scan_depth_used: int = 0
+    group_quality_score: int = 50
     page_title: str | None = None
     current_url: str | None = None
     login_valid: bool = False
@@ -144,6 +147,7 @@ class GroupScanStats:
     matched: int = 0
     alerts_sent: int = 0
     loose_matches: int = 0
+    hot_leads_found: int = 0
     raw_text_previews: list[str] | None = None
     cleaned_text_previews: list[str] | None = None
     post_url_previews: list[str] | None = None
@@ -176,6 +180,7 @@ class ScanOptions:
     save_debug_leads: bool = False
     send_telegram: bool | None = None
     scan_run_id: int | None = None
+    posts_per_group_override: int | None = None
 
 
 @dataclass(frozen=True)
@@ -186,6 +191,7 @@ class ScanRuntime:
     save_debug_leads: bool
     send_telegram: bool
     scan_run_id: int | None = None
+    posts_per_group_override: int | None = None
 
     @property
     def safe_debug_mode(self) -> bool:
@@ -223,6 +229,32 @@ def build_text_preview(text: str, limit: int = 80) -> str:
     if len(collapsed) <= limit:
         return collapsed
     return f"{collapsed[:limit].rstrip()}..."
+
+
+def determine_scan_depth(runtime: ScanRuntime, settings, storage: LeadStorage, group_name: str, group_url: str) -> tuple[int, int]:
+    quality_score = storage.get_group_quality_score(group_name, group_url)
+    if runtime.posts_per_group_override and runtime.posts_per_group_override > 0:
+        return runtime.posts_per_group_override, quality_score
+    if quality_score >= 70:
+        return 200, quality_score
+    if quality_score <= 35:
+        return 40, quality_score
+    return settings.posts_per_group_limit, quality_score
+
+
+def count_author_repetition(storage: LeadStorage, author_name: str | None) -> int:
+    if not author_name:
+        return 0
+    with storage._connect() as connection:  # noqa: SLF001
+        row = connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM leads
+            WHERE COALESCE(author, '') = ?
+            """,
+            (author_name,),
+        ).fetchone()
+    return int(row["count"]) if row else 0
 
 
 def collapse_repeated_words(text: str) -> str:
@@ -682,6 +714,9 @@ def scan_single_group(
 
     group_name = detect_group_name(page, group_url)
     stats = GroupScanStats(group_name=group_name, group_url=group_url)
+    requested_scan_depth, group_quality_score = determine_scan_depth(runtime, settings, storage, group_name, group_url)
+    stats.requested_scan_depth = requested_scan_depth
+    stats.group_quality_score = group_quality_score
     try:
         stats.page_title = page.title()
     except Exception:  # noqa: BLE001
@@ -709,18 +744,29 @@ def scan_single_group(
                 f"login_valid: {stats.login_valid}",
                 f"access_problem: {stats.access_problem}",
                 f"access_problem_reason: {stats.access_problem_reason or '-'}",
+                f"requested_scan_depth: {stats.requested_scan_depth}",
+                f"group_quality_score: {stats.group_quality_score}",
             ]
         )
 
     post_handles = collect_post_handles(
         page=page,
         max_scrolls=settings.max_scrolls,
-        max_posts=settings.posts_per_group_limit,
+        max_posts=requested_scan_depth,
         min_delay=settings.min_delay_seconds,
         max_delay=settings.max_delay_seconds,
     )
     stats.total_dom_cards_found = len(post_handles)
+    stats.actual_scan_depth_used = len(post_handles)
 
+    logger.info(
+        "GROUP_SCAN_DEPTH | name=%s | url=%s | requested_depth=%s | actual_depth=%s | group_quality_score=%s",
+        group_name,
+        group_url,
+        requested_scan_depth,
+        stats.actual_scan_depth_used,
+        group_quality_score,
+    )
     logger.info(
         "GROUP_POST_CONTAINERS | name=%s | url=%s | count=%s",
         group_name,
@@ -861,6 +907,8 @@ def scan_single_group(
             matched_keywords=candidate.match.matched_keywords,
             enable_ai_scoring=settings.enable_ai_scoring and not runtime.loose,
             openai_api_key=settings.openai_api_key,
+            post_timestamp=candidate.timestamp,
+            repeated_author_count=count_author_repetition(storage, candidate.author_name),
         )
         suggested_reply_he = intelligence.suggested_first_reply_he or suggested_reply_he
         fit_rejected = intelligence.heat_level == "reject"
@@ -917,6 +965,8 @@ def scan_single_group(
                 reject_reason_he=intelligence.reject_reason_he,
                 conversion_reason_he=intelligence.conversion_reason_he,
                 heat_score=intelligence.heat_score,
+                heat_label=intelligence.heat_label,
+                heat_reasons_json=json.dumps(intelligence.heat_reasons_json, ensure_ascii=False),
                 conversion_score=intelligence.conversion_score,
                 vibe_score=intelligence.vibe_score,
                 vip_match=intelligence.vip_match,
@@ -926,6 +976,8 @@ def scan_single_group(
                 recommended_media_type=intelligence.recommended_media_type,
                 recommended_media_reason=intelligence.recommended_media_reason,
                 scan_run_id=runtime.scan_run_id,
+                scan_depth_used=stats.actual_scan_depth_used,
+                group_quality_score=stats.group_quality_score,
                 status=lead_status,
                 sent_to_telegram=0,
             )
@@ -1014,6 +1066,8 @@ def scan_single_group(
             continue
 
         stats.matched += 1
+        if intelligence.heat_score >= 80:
+            stats.hot_leads_found += 1
         debug_record.reject_reason = None
         if runtime.scan_run_id is not None:
             candidate.scan_match_id = storage.save_scan_match(
@@ -1064,6 +1118,8 @@ def scan_single_group(
             ai_score=candidate.ai_result.score if candidate.ai_result else None,
             intent_score=intelligence.intent_score,
             heat_score=intelligence.heat_score,
+            heat_label=intelligence.heat_label,
+            heat_reasons=intelligence.heat_reasons_json,
             conversion_score=intelligence.conversion_score,
             vibe_score=intelligence.vibe_score,
             heat_level=intelligence.heat_level,
@@ -1104,10 +1160,14 @@ def scan_single_group(
         human_delay(settings.min_delay_seconds, settings.max_delay_seconds)
 
     logger.info(
-        "GROUP_SCAN_DONE | name=%s | scanned=%s | matched=%s | alerts=%s | dom_cards=%s | extracted=%s | cleaned=%s | extraction_failed=%s | empty_after_cleaning=%s | owner_rejected=%s | negative_rejected=%s | low_score_rejected=%s | ai_rejected=%s | passed_keyword=%s | leads_saved=%s | duplicate_seen=%s | duplicate_lead=%s",
+        "GROUP_SCAN_DONE | name=%s | requested_depth=%s | actual_depth=%s | group_quality_score=%s | scanned=%s | matched=%s | hot_leads=%s | alerts=%s | dom_cards=%s | extracted=%s | cleaned=%s | extraction_failed=%s | empty_after_cleaning=%s | owner_rejected=%s | negative_rejected=%s | low_score_rejected=%s | ai_rejected=%s | passed_keyword=%s | leads_saved=%s | duplicate_seen=%s | duplicate_lead=%s",
         stats.group_name,
+        stats.requested_scan_depth,
+        stats.actual_scan_depth_used,
+        stats.group_quality_score,
         stats.scanned,
         stats.matched,
+        stats.hot_leads_found,
         stats.alerts_sent,
         stats.total_dom_cards_found,
         stats.total_text_blocks_extracted,
@@ -1130,6 +1190,7 @@ def scan_single_group(
         debug_lines.extend(
             [
                 f"cards_found: {stats.total_dom_cards_found}",
+                f"actual_scan_depth_used: {stats.actual_scan_depth_used}",
                 f"text_blocks_extracted: {stats.total_text_blocks_extracted}",
                 f"cleaned_posts: {stats.total_cleaned_posts}",
                 f"extraction_failed: {stats.extraction_failed}",
@@ -1141,6 +1202,7 @@ def scan_single_group(
                 f"duplicate_seen: {stats.duplicate_seen}",
                 f"duplicate_lead: {stats.duplicate_lead}",
                 f"saved: {stats.posts_saved_to_leads}",
+                f"hot_leads_found: {stats.hot_leads_found}",
                 f"telegram_sent: {stats.alerts_sent}",
                 "first_5_raw_text_previews:",
                 *[f"  - {item}" for item in stats.raw_text_previews],
@@ -1163,11 +1225,12 @@ def scan_single_group(
             "posts_matched": stats.matched,
             "leads_saved": stats.posts_saved_to_leads,
             "telegram_sent": stats.alerts_sent,
+            "hot_leads": stats.hot_leads_found,
         },
         group_stats=stats.__dict__.copy(),
         log_line=(
             f"Completed group {group_index}/{total_groups}: "
-            f"matched={stats.matched} saved={stats.posts_saved_to_leads} alerts={stats.alerts_sent}"
+            f"matched={stats.matched} hot={stats.hot_leads_found} saved={stats.posts_saved_to_leads} alerts={stats.alerts_sent}"
         ),
     )
     return stats
@@ -1201,6 +1264,7 @@ def run_scan(
         save_debug_leads=options.save_debug_leads,
         send_telegram=should_send_telegram,
         scan_run_id=options.scan_run_id,
+        posts_per_group_override=options.posts_per_group_override,
     )
     storage = LeadStorage(settings.resolved_database_path)
     logger.info("DB_PATH | %s", settings.resolved_database_path)
@@ -1326,10 +1390,14 @@ def run_scan(
     logger.info("SCAN SUMMARY")
     for stats in group_stats:
         logger.info(
-            "%s -> scanned=%s matched=%s saved=%s alerts=%s cards_found=%s extracted=%s cleaned=%s extraction_failed=%s empty_after_cleaning=%s owner_rejected=%s negative_rejected=%s low_score_rejected=%s ai_rejected=%s duplicate_seen=%s duplicate_lead=%s failure_reason=%s",
+            "%s -> requested_depth=%s actual_depth=%s quality=%s scanned=%s matched=%s hot=%s saved=%s alerts=%s cards_found=%s extracted=%s cleaned=%s extraction_failed=%s empty_after_cleaning=%s owner_rejected=%s negative_rejected=%s low_score_rejected=%s ai_rejected=%s duplicate_seen=%s duplicate_lead=%s failure_reason=%s",
             stats.group_name,
+            stats.requested_scan_depth,
+            stats.actual_scan_depth_used,
+            stats.group_quality_score,
             stats.scanned,
             stats.matched,
+            stats.hot_leads_found,
             stats.posts_saved_to_leads,
             stats.alerts_sent,
             stats.total_dom_cards_found,
@@ -1358,6 +1426,7 @@ def run_scan(
     )
     total_rejected_ai = sum(stats.posts_rejected_by_ai for stats in group_stats)
     total_saved = sum(stats.posts_saved_to_leads for stats in group_stats)
+    total_hot = sum(stats.hot_leads_found for stats in group_stats)
     logger.info("TOTAL GROUPS: %s", len(group_stats))
     logger.info("GROUPS ACCESSIBLE: %s", accessible_groups)
     logger.info("GROUPS BLOCKED/NOT_JOINED: %s", blocked_groups)
@@ -1367,6 +1436,7 @@ def run_scan(
     logger.info("POSTS_REJECTED_BY_KEYWORDS: %s", total_rejected_keywords)
     logger.info("POSTS_REJECTED_BY_AI: %s", total_rejected_ai)
     logger.info("LEADS_SAVED: %s", total_saved)
+    logger.info("HOT_LEADS_FOUND: %s", total_hot)
     if runtime.debug_scan:
         debug_lines.extend(
             [
@@ -1380,6 +1450,7 @@ def run_scan(
                 f"POSTS_REJECTED_BY_KEYWORDS: {total_rejected_keywords}",
                 f"POSTS_REJECTED_BY_AI: {total_rejected_ai}",
                 f"LEADS_SAVED: {total_saved}",
+                f"HOT_LEADS_FOUND: {total_hot}",
             ]
         )
         write_debug_artifacts(debug_lines, debug_records)
@@ -1398,6 +1469,7 @@ def run_scan(
         "posts_rejected_by_keywords": total_rejected_keywords,
         "posts_rejected_by_ai": total_rejected_ai,
         "leads_saved": total_saved,
+        "hot_leads_found": total_hot,
         "telegram_sent": sum(stats.alerts_sent for stats in group_stats),
         "group_stats": [stats.__dict__.copy() for stats in group_stats],
     }
@@ -1424,6 +1496,7 @@ def scrape_group_posts(
     loose: bool = False,
     save_debug_leads: bool = False,
     send_telegram_alerts: bool | None = None,
+    posts_per_group: int | None = None,
 ) -> dict[str, Any]:
     return run_scan(
         ScanOptions(
@@ -1432,6 +1505,7 @@ def scrape_group_posts(
             loose=loose,
             save_debug_leads=save_debug_leads,
             send_telegram=send_telegram_alerts,
+            posts_per_group_override=posts_per_group,
         )
     )
 
@@ -1463,6 +1537,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Send Telegram alerts for newly saved leads in this run.",
     )
+    parser.add_argument(
+        "--posts-per-group",
+        type=int,
+        help="Override dynamic scan depth for every group in this run.",
+    )
     args = parser.parse_args()
     scrape_group_posts(
         rescan=args.rescan,
@@ -1470,4 +1549,5 @@ if __name__ == "__main__":
         loose=args.loose,
         save_debug_leads=args.save_debug_leads,
         send_telegram_alerts=args.send_telegram if (args.debug_scan or args.loose) else None,
+        posts_per_group=args.posts_per_group,
     )

@@ -115,6 +115,7 @@ It is designed for Royal Water Villa lead monitoring, not outreach automation.
    python scraper.py --debug-scan --rescan
    python scraper.py --rescan --loose --save-debug-leads
    python scraper.py --rescan --loose --save-debug-leads --send-telegram
+   python scraper.py --posts-per-group 150
    ```
 
 8. Run the local dashboard:
@@ -188,6 +189,7 @@ For each lead it estimates:
 - `intent_score`: how likely this is a real accommodation request
 - `fit_score`: how well the request matches Royal Water Villa specifically
 - `heat_score`: urgency and time sensitivity
+- `heat_label`: `hot` / `warm` / `cold`
 - `conversion_score`: realistic chance to close the lead
 - `vibe_score`: romantic / quiet / private / pastoral fit
 
@@ -209,6 +211,9 @@ Additional extracted fields include:
 - `pool_requirement_strength`
 - `emotional_vibe`
 - `fit_reason_he`
+- `heat_reasons_json`
+- `scan_depth_used`
+- `group_quality_score`
 - `reject_reason_he`
 - `conversion_reason_he`
 - `vip_match`
@@ -424,7 +429,13 @@ Vibe Score: X
 - Each group is isolated so a failure in one group does not stop the rest.
 - The scraper adds a random cooldown between groups to stay gentle on Facebook.
 - `MAX_SCROLLS` defaults to `8`.
-- `POSTS_PER_GROUP_LIMIT` defaults to `80`.
+- `FB_POSTS_PER_GROUP` defaults to `100`.
+- You can override scan depth per run with `python scraper.py --posts-per-group 150`.
+- If there is enough history, scan depth becomes dynamic:
+  - high-quality groups: up to `200`
+  - normal groups: `100`
+  - low-quality groups: `40`
+- If there is not enough history yet, group quality defaults to `50` (neutral).
 - Logs include per-group progress and a final summary in this shape:
 
 ```text

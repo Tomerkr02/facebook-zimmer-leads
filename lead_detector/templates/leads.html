@@ -15,7 +15,7 @@
     </div>
     <div class="stats-grid kpi-grid">
       <a class="stat-card stat-strong clickable-card" href="{{ url_for('leads_all_page') }}"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></a>
-      <a class="stat-card hot clickable-card" href="{{ url_for('leads_page') }}?heat=hot"><strong>{{ stats.hot_leads }}</strong><span>חמים</span></a>
+      <a class="stat-card hot clickable-card" href="{{ url_for('leads_page') }}?view=hot"><strong>{{ stats.hot_leads }}</strong><span>Hot Leads</span></a>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?view=vip"><strong>{{ stats.vip_leads }}</strong><span>VIP Matches</span></a>
       <div class="stat-card warm"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=new"><strong>{{ stats.new_leads }}</strong><span>חדשים</span></a>
@@ -100,6 +100,11 @@
   <div class="keyword-list quick-view-row">
     <a class="keyword{% if not filters.view and not filters.status and not filters.telegram_sent and not filters.vip_only and not filters.feedback_state and not filters.matched_only %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}">All</a>
     <a class="keyword{% if filters.view == 'vip' or filters.vip_only %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=vip">VIP</a>
+    <a class="keyword{% if filters.view == 'hot' or filters.heat_label == 'hot' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=hot">Hot Leads</a>
+    <a class="keyword{% if filters.view == 'warm' or filters.heat_label == 'warm' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=warm">Warm Leads</a>
+    <a class="keyword{% if filters.view == 'cold' or filters.heat_label == 'cold' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=cold">Cold Leads</a>
+    <a class="keyword{% if filters.view == 'vip_hot' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=vip_hot">VIP Hot Leads</a>
+    <a class="keyword{% if filters.view == 'unreviewed_hot' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=unreviewed_hot">Unreviewed Hot Leads</a>
     <a class="keyword{% if filters.view == 'reviewed' or filters.feedback_state == 'reviewed' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=reviewed">Reviewed</a>
     <a class="keyword{% if filters.view == 'unreviewed' or filters.feedback_state == 'unreviewed' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=unreviewed">Unreviewed</a>
     <a class="keyword{% if request.endpoint == 'archived_page' %} keyword-active{% endif %}" href="{{ url_for('archived_page') }}">Archived</a>
@@ -236,6 +241,7 @@
   <div class="keyword-list">
     {% if filters.status %}<span class="keyword">סטטוס: {{ filters.status|status_label }}</span>{% endif %}
     {% if filters.heat_level %}<span class="keyword">חום: {{ filters.heat_level|heat_label }}</span>{% endif %}
+    {% if filters.heat_label %}<span class="keyword">Heat Label: {{ filters.heat_label|upper }}</span>{% endif %}
     {% if filters.created_date == 'today' %}<span class="keyword">תאריך: היום</span>{% endif %}
     {% if filters.search %}<span class="keyword">חיפוש: {{ filters.search }}</span>{% endif %}
     {% if filters.scan_run_id %}<span class="keyword">סריקה: #{{ filters.scan_run_id }}</span>{% endif %}
@@ -278,7 +284,7 @@
           <p class="group-subline">{{ lead.author or "כותב לא זמין" }} · {{ (lead.requested_area or "unknown")|area_label }}</p>
         </div>
         <div class="badge-stack">
-          {% if lead.perfect_match %}<span class="vip-pill">👑 PERFECT MATCH</span>{% endif %}
+          {% if lead.perfect_match and (lead.heat_score or 0) >= 80 %}<span class="vip-pill">👑 HOT PERFECT MATCH</span>{% elif lead.perfect_match %}<span class="vip-pill">👑 PERFECT MATCH</span>{% endif %}
           <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
           <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
         </div>
@@ -289,6 +295,7 @@
         <span>מילים <strong>{{ lead.keyword_score }}</strong></span>
         <span>כוונה <strong>{{ lead.intent_score if lead.intent_score is not none else "-" }}</strong></span>
         <span>חום <strong>{{ lead.heat_score if lead.heat_score is not none else "-" }}</strong></span>
+        <span>Heat Label <strong>{{ (lead.heat_label or 'cold')|upper }}</strong></span>
         <span>סגירה <strong>{{ lead.conversion_score if lead.conversion_score is not none else "-" }}</strong></span>
         <span>וייב <strong>{{ lead.vibe_score if lead.vibe_score is not none else "-" }}</strong></span>
         <span>AI <strong>{{ lead.ai_score if lead.ai_score is not none else "-" }}</strong></span>
@@ -348,6 +355,16 @@
       <section class="reply-block">
         <strong>למה המערכת חושבת שזה ליד טוב</strong>
         <p>{{ lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "-" }}</p>
+      </section>
+      <section class="reply-block">
+        <strong>Why this lead matters</strong>
+        <div class="check-list">
+          {% for item in lead.heat_reasons_list[:5] %}
+          <div>• {{ item }}</div>
+          {% else %}
+          <div class="muted">אין עדיין סיבות חום שמורות</div>
+          {% endfor %}
+        </div>
       </section>
       <section class="reply-block">
         <strong>למה זה ליד טוב</strong>

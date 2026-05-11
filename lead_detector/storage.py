@@ -351,6 +351,8 @@ class LeadStorage:
             "reject_reason_he": "TEXT",
             "conversion_reason_he": "TEXT",
             "heat_score": "INTEGER DEFAULT 0",
+            "heat_label": "TEXT",
+            "heat_reasons_json": "TEXT",
             "conversion_score": "INTEGER DEFAULT 0",
             "vibe_score": "INTEGER DEFAULT 0",
             "vip_match": "INTEGER DEFAULT 0",
@@ -363,6 +365,8 @@ class LeadStorage:
             "recommended_media_type": "TEXT",
             "recommended_media_reason": "TEXT",
             "scan_run_id": "INTEGER",
+            "scan_depth_used": "INTEGER DEFAULT 0",
+            "group_quality_score": "INTEGER DEFAULT 50",
         }
         existing_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(leads)").fetchall()
@@ -856,6 +860,7 @@ class LeadStorage:
     def filter_options(self) -> dict[str, list[str]]:
         columns = [
             "heat_level",
+            "heat_label",
             "status",
             "guest_type",
             "urgency",
@@ -928,6 +933,8 @@ class LeadStorage:
         reject_reason_he: str | None = None,
         conversion_reason_he: str | None = None,
         heat_score: int = 0,
+        heat_label: str | None = None,
+        heat_reasons_json: str | None = None,
         conversion_score: int = 0,
         vibe_score: int = 0,
         vip_match: bool = False,
@@ -938,6 +945,8 @@ class LeadStorage:
         recommended_media_type: str | None = None,
         recommended_media_reason: str | None = None,
         scan_run_id: int | None = None,
+        scan_depth_used: int = 0,
+        group_quality_score: int = 50,
         status: str = "new",
         sent_to_telegram: int = 0,
         notes: str | None = None,
@@ -1025,6 +1034,8 @@ class LeadStorage:
                             reject_reason_he = COALESCE(?, reject_reason_he),
                             conversion_reason_he = COALESCE(?, conversion_reason_he),
                             heat_score = ?,
+                            heat_label = COALESCE(?, heat_label),
+                            heat_reasons_json = COALESCE(?, heat_reasons_json),
                             conversion_score = ?,
                             vibe_score = ?,
                             vip_match = ?,
@@ -1035,6 +1046,8 @@ class LeadStorage:
                             recommended_media_type = COALESCE(?, recommended_media_type),
                             recommended_media_reason = COALESCE(?, recommended_media_reason),
                             scan_run_id = COALESCE(?, scan_run_id),
+                            scan_depth_used = CASE WHEN ? > 0 THEN ? ELSE scan_depth_used END,
+                            group_quality_score = ?,
                             sent_to_telegram = MAX(sent_to_telegram, ?),
                             notes = COALESCE(notes, ?),
                             text_hash = ?
@@ -1090,6 +1103,8 @@ class LeadStorage:
                             reject_reason_he,
                             conversion_reason_he,
                             heat_score,
+                            heat_label,
+                            heat_reasons_json,
                             conversion_score,
                             vibe_score,
                             1 if vip_match else 0,
@@ -1100,6 +1115,9 @@ class LeadStorage:
                             recommended_media_type,
                             recommended_media_reason,
                             scan_run_id,
+                            scan_depth_used,
+                            scan_depth_used,
+                            group_quality_score,
                             sent_to_telegram,
                             notes,
                             text_hash,
@@ -1167,6 +1185,8 @@ class LeadStorage:
                     "reject_reason_he",
                     "conversion_reason_he",
                     "heat_score",
+                    "heat_label",
+                    "heat_reasons_json",
                     "conversion_score",
                     "vibe_score",
                     "vip_match",
@@ -1177,6 +1197,8 @@ class LeadStorage:
                     "recommended_media_type",
                     "recommended_media_reason",
                     "scan_run_id",
+                    "scan_depth_used",
+                    "group_quality_score",
                     "status",
                     "sent_to_telegram",
                     "notes",
@@ -1233,6 +1255,8 @@ class LeadStorage:
                     reject_reason_he,
                     conversion_reason_he,
                     heat_score,
+                    heat_label,
+                    heat_reasons_json,
                     conversion_score,
                     vibe_score,
                     1 if vip_match else 0,
@@ -1243,6 +1267,8 @@ class LeadStorage:
                     recommended_media_type,
                     recommended_media_reason,
                     scan_run_id,
+                    scan_depth_used,
+                    group_quality_score,
                     status,
                     sent_to_telegram,
                     notes,
@@ -1307,6 +1333,7 @@ class LeadStorage:
         status: str | None = None,
         limit: int = 100,
         heat_level: str | None = None,
+        heat_label: str | None = None,
         guest_type: str | None = None,
         urgency: str | None = None,
         requested_area: str | None = None,
@@ -1348,7 +1375,9 @@ class LeadStorage:
                 id DESC
             """,
             "newest": "datetime(created_at) DESC, id DESC",
+            "heat_score": "COALESCE(heat_score, 0) DESC, datetime(created_at) DESC, id DESC",
             "fit_score": "fit_score DESC, datetime(created_at) DESC",
+            "vip_first": "COALESCE(vip_match, 0) DESC, COALESCE(heat_score, 0) DESC, datetime(created_at) DESC",
             "conversion_score": "conversion_score DESC, fit_score DESC, datetime(created_at) DESC",
             "hottest": """
                 CASE heat_level
@@ -1386,6 +1415,9 @@ class LeadStorage:
         if heat_level:
             filters.append("heat_level = ?")
             params.append(heat_level)
+        if heat_label:
+            filters.append("heat_label = ?")
+            params.append(heat_label)
         if guest_type:
             filters.append("guest_type = ?")
             params.append(guest_type)
@@ -1456,6 +1488,7 @@ class LeadStorage:
     ) -> int:
         status = filters.get("status")
         heat_level = filters.get("heat_level")
+        heat_label = filters.get("heat_label")
         guest_type = filters.get("guest_type")
         urgency = filters.get("urgency")
         requested_area = filters.get("requested_area")
@@ -1489,6 +1522,9 @@ class LeadStorage:
         if heat_level:
             clauses.append("heat_level = ?")
             params.append(heat_level)
+        if heat_label:
+            clauses.append("heat_label = ?")
+            params.append(heat_label)
         if guest_type:
             clauses.append("guest_type = ?")
             params.append(guest_type)
@@ -2008,6 +2044,55 @@ class LeadStorage:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def get_group_quality_score(self, group_name: str | None, group_url: str | None = None) -> int:
+        label = (group_name or "").strip()
+        url = (group_url or "").strip()
+        with self._connect() as connection:
+            lead_row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_leads,
+                    SUM(CASE WHEN COALESCE(vip_match, 0) = 1 THEN 1 ELSE 0 END) AS vip_leads,
+                    SUM(CASE WHEN COALESCE(owner_advertisement, 0) = 1 THEN 1 ELSE 0 END) AS owner_ads,
+                    SUM(CASE WHEN COALESCE(status, 'new') = 'not_relevant' OR COALESCE(heat_level, 'cold') = 'reject' THEN 1 ELSE 0 END) AS rejected_leads,
+                    SUM(CASE WHEN COALESCE(pet_request, 0) = 1 THEN 1 ELSE 0 END) AS pet_requests,
+                    SUM(CASE WHEN COALESCE(lead_type, '') = 'event_seeker' THEN 1 ELSE 0 END) AS party_posts,
+                    SUM(CASE WHEN COALESCE(heat_score, 0) >= 80 THEN 1 ELSE 0 END) AS hot_leads
+                FROM leads
+                WHERE (? != '' AND COALESCE(group_name, '') = ?)
+                   OR (? != '' AND COALESCE(group_url, '') = ?)
+                """,
+                (label, label, url, url),
+            ).fetchone()
+            feedback_row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_feedback,
+                    SUM(CASE WHEN feedback_type IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS positive_feedback,
+                    SUM(CASE WHEN feedback_type NOT IN ('good_lead', 'perfect_match', 'closed_successfully') THEN 1 ELSE 0 END) AS negative_feedback
+                FROM training_feedback
+                WHERE (? != '' AND COALESCE(group_name, '') = ?)
+                """,
+                (label, label),
+            ).fetchone()
+        total_leads = int(lead_row["total_leads"] or 0) if lead_row else 0
+        total_feedback = int(feedback_row["total_feedback"] or 0) if feedback_row else 0
+        sample_size = total_leads + total_feedback
+        if sample_size < 3:
+            return 50
+        vip_leads = int(lead_row["vip_leads"] or 0)
+        owner_ads = int(lead_row["owner_ads"] or 0)
+        rejected = int(lead_row["rejected_leads"] or 0)
+        pet_requests = int(lead_row["pet_requests"] or 0)
+        party_posts = int(lead_row["party_posts"] or 0)
+        hot_leads = int(lead_row["hot_leads"] or 0)
+        positive_feedback = int(feedback_row["positive_feedback"] or 0) if feedback_row else 0
+        negative_feedback = int(feedback_row["negative_feedback"] or 0) if feedback_row else 0
+        lead_quality = ((vip_leads * 2) + hot_leads - owner_ads - rejected - pet_requests - party_posts) / max(total_leads, 1)
+        feedback_quality = (positive_feedback - negative_feedback) / max(total_feedback, 1) if total_feedback else 0.0
+        score = 50 + (lead_quality * 15) + (feedback_quality * 25)
+        return max(0, min(100, int(round(score))))
+
     def bulk_update_lead_status(self, lead_ids: list[int], status: str) -> None:
         if status not in ALLOWED_LEAD_STATUSES or not lead_ids:
             return
@@ -2203,6 +2288,7 @@ class LeadStorage:
         result["bad_fit_reasons_list"] = self.deserialize_keywords(result.get("bad_fit_reasons"))
         result["intent_reasons_list"] = self.deserialize_keywords(result.get("intent_reasons"))
         result["urgency_reasons_list"] = self.deserialize_keywords(result.get("urgency_reasons"))
+        result["heat_reasons_list"] = self.deserialize_keywords(result.get("heat_reasons_json"))
         result["pet_friendly_requested"] = bool(result.get("pet_friendly_requested"))
         result["religious_signal"] = bool(result.get("religious_signal"))
         result["romantic_signal"] = bool(result.get("romantic_signal"))
