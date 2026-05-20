@@ -25,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DEBUG_REPORT_PATH = BASE_DIR / "debug_scan_report.txt"
 DEBUG_JSON_PATH = BASE_DIR / "debug_extracted_posts.json"
 DEBUG_SCREENSHOT_DIR = BASE_DIR / "debug_screenshots"
+DEBUG_GROUP_DIR = BASE_DIR / "debug_group_artifacts"
 LOOSE_MATCH_TERMS = [
     "צימר",
     "וילה",
@@ -68,7 +69,9 @@ POST_EXTRACTION_SCRIPT = """
   const permalink = hrefs.find((href) =>
     /facebook\\.com\\/.+\\/(posts|permalink)\\//.test(href) ||
     /facebook\\.com\\/groups\\/[^/]+\\/user\\//.test(href) ||
-    /facebook\\.com\\/groups\\/[^/]+\\/posts\\//.test(href)
+    /facebook\\.com\\/groups\\/[^/]+\\/posts\\//.test(href) ||
+    /facebook\\.com\\/share\\//.test(href) ||
+    /facebook\\.com\\/reel\\//.test(href)
   ) || null;
 
   const timeNode = node.querySelector("a[aria-label] span, a[aria-label], span[aria-label], time");
@@ -111,6 +114,16 @@ class PostCandidate:
     scan_match_id: int | None = None
 
 
+@dataclass
+class ExtractedPost:
+    post_key: str
+    post_url: str | None
+    author_name: str | None
+    timestamp: str | None
+    raw_text: str
+    cleaned_text: str
+
+
 @dataclass(frozen=True)
 class GroupTarget:
     url: str
@@ -143,6 +156,7 @@ class GroupScanStats:
     posts_saved_to_leads: int = 0
     duplicate_seen: int = 0
     duplicate_lead: int = 0
+    hidden_by_scoring: int = 0
     scanned: int = 0
     matched: int = 0
     alerts_sent: int = 0
@@ -235,11 +249,11 @@ def determine_scan_depth(runtime: ScanRuntime, settings, storage: LeadStorage, g
     quality_score = storage.get_group_quality_score(group_name, group_url)
     if runtime.posts_per_group_override and runtime.posts_per_group_override > 0:
         return runtime.posts_per_group_override, quality_score
-    if quality_score >= 70:
-        return 200, quality_score
-    if quality_score <= 35:
-        return 40, quality_score
-    return settings.posts_per_group_limit, quality_score
+    if runtime.debug_scan:
+        return 20, quality_score
+    if runtime.loose:
+        return 100, quality_score
+    return 40, quality_score
 
 
 def count_author_repetition(storage: LeadStorage, author_name: str | None) -> int:
@@ -500,41 +514,122 @@ def detect_group_name(page, group_url: str) -> str:
     return group_url
 
 
-def collect_post_handles(page, max_scrolls: int, max_posts: int, min_delay: float, max_delay: float) -> list[ElementHandle]:
-    seen_handles: list[ElementHandle] = []
-    seen_ids: set[int] = set()
-    selectors = [
+def _candidate_container_selectors() -> list[str]:
+    return [
         "[role='article']",
         "div[data-pagelet*='FeedUnit']",
         "div[aria-posinset]",
+        "div[role='feed'] > div",
+        "div:has(a[href*='/posts/'])",
+        "div:has(a[href*='/permalink/'])",
+        "div:has(a[href*='/share/'])",
+        "div:has(a[href*='/reel/'])",
+        "div:has([data-ad-comet-preview='message'])",
+        "div:has([data-ad-preview='message'])",
     ]
+
+
+def capture_group_scroll_screenshot(page, group_index: int, scroll_number: int) -> Path:
+    DEBUG_SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    screenshot_path = DEBUG_SCREENSHOT_DIR / f"group_{group_index}_scroll_{scroll_number}.png"
+    page.screenshot(path=str(screenshot_path), full_page=True)
+    return screenshot_path
+
+
+def collect_extracted_posts(
+    page,
+    *,
+    group_name: str,
+    group_url: str,
+    group_index: int,
+    max_scrolls: int,
+    max_posts: int,
+    min_delay: float,
+    max_delay: float,
+    debug_scan: bool,
+) -> tuple[list[ExtractedPost], int]:
+    extracted_posts: list[ExtractedPost] = []
+    seen_post_keys: set[str] = set()
+    total_visible_cards_found = 0
     stagnant_scrolls = 0
+    selectors = _candidate_container_selectors()
+    screenshot_points = {1, 3, 5}
 
     for scroll_index in range(max_scrolls):
-        before_count = len(seen_handles)
-        logger.info("Scanning visible posts (scroll %s/%s)...", scroll_index + 1, max_scrolls)
+        scroll_number = scroll_index + 1
+        before_count = len(extracted_posts)
+        visible_cards_this_scroll = 0
+        logger.info(
+            "GROUP_SCROLL_SCAN | group=%s | url=%s | scroll=%s/%s | collected=%s/%s",
+            group_name,
+            group_url,
+            scroll_number,
+            max_scrolls,
+            len(extracted_posts),
+            max_posts,
+        )
         for selector in selectors:
-            handles = page.locator(selector).element_handles()
+            try:
+                handles = page.locator(selector).element_handles()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("SELECTOR_EXTRACTION_FAILED | selector=%s | error=%s", selector, exc)
+                continue
+            visible_cards_this_scroll += len(handles)
             for handle in handles:
-                handle_id = id(handle)
-                if handle_id not in seen_ids:
-                    seen_ids.add(handle_id)
-                    seen_handles.append(handle)
-                    if len(seen_handles) >= max_posts:
-                        return seen_handles[:max_posts]
+                try:
+                    raw_post = handle.evaluate(POST_EXTRACTION_SCRIPT)
+                except Exception:  # noqa: BLE001
+                    continue
+                raw_text = (raw_post.get("text") or "").strip()
+                cleaned_text = clean_post_text(raw_text)
+                raw_url = normalize_facebook_url((raw_post.get("post_url") or "").strip()) or None
+                post_key = build_post_key(raw_url, cleaned_text or raw_text)
+                if not raw_text and not cleaned_text and not raw_url:
+                    continue
+                if post_key in seen_post_keys:
+                    continue
+                seen_post_keys.add(post_key)
+                extracted_posts.append(
+                    ExtractedPost(
+                        post_key=post_key,
+                        post_url=raw_url,
+                        author_name=(raw_post.get("author") or "").strip() or None,
+                        timestamp=(raw_post.get("timestamp") or "").strip() or None,
+                        raw_text=raw_text,
+                        cleaned_text=cleaned_text,
+                    )
+                )
+                if len(extracted_posts) >= max_posts:
+                    total_visible_cards_found += visible_cards_this_scroll
+                    if debug_scan and scroll_number in screenshot_points:
+                        capture_group_scroll_screenshot(page, group_index, scroll_number)
+                    return extracted_posts[:max_posts], total_visible_cards_found
 
-        if len(seen_handles) == before_count:
+        total_visible_cards_found += visible_cards_this_scroll
+        if debug_scan and scroll_number in screenshot_points:
+            capture_group_scroll_screenshot(page, group_index, scroll_number)
+
+        if len(extracted_posts) == before_count:
             stagnant_scrolls += 1
         else:
             stagnant_scrolls = 0
-        if stagnant_scrolls >= 2:
-            logger.info("No new posts found for two consecutive scrolls. Stopping group scan early.")
+
+        if stagnant_scrolls >= 4:
+            logger.info(
+                "GROUP_SCROLL_STOP | group=%s | url=%s | reason=no_new_posts_after_multiple_scrolls",
+                group_name,
+                group_url,
+            )
             break
 
-        page.mouse.wheel(0, random.randint(1200, 2200))
+        page.mouse.wheel(0, random.randint(1400, 2600))
         human_delay(min_delay, max_delay)
+        try:
+            page.wait_for_timeout(random.randint(1200, 2200))
+        except Exception:  # noqa: BLE001
+            pass
 
-    return seen_handles[:max_posts]
+    return extracted_posts[:max_posts], total_visible_cards_found
 
 
 def extract_post_candidate(handle: ElementHandle, min_score: int, loose: bool = False) -> PostCandidate | None:
@@ -684,6 +779,41 @@ def capture_group_screenshot(page, screenshot_index: int) -> Path:
     return screenshot_path
 
 
+def save_group_debug_artifacts(group_index: int, group_name: str, group_url: str, extracted_posts: list[ExtractedPost]) -> None:
+    DEBUG_GROUP_DIR.mkdir(parents=True, exist_ok=True)
+    safe_name = re.sub(r"[^a-zA-Z0-9_\-\u0590-\u05FF]+", "_", group_name or f"group_{group_index}").strip("_") or f"group_{group_index}"
+    text_path = DEBUG_GROUP_DIR / f"{group_index:02d}_{safe_name}_raw.txt"
+    json_path = DEBUG_GROUP_DIR / f"{group_index:02d}_{safe_name}_posts.json"
+
+    text_lines = [f"group_name: {group_name}", f"group_url: {group_url}", ""]
+    payload: list[dict[str, Any]] = []
+    for index, post in enumerate(extracted_posts, start=1):
+        text_lines.extend(
+            [
+                f"POST {index}",
+                f"url: {post.post_url or '-'}",
+                f"author: {post.author_name or '-'}",
+                f"timestamp: {post.timestamp or '-'}",
+                f"raw_text: {post.raw_text}",
+                f"cleaned_text: {post.cleaned_text}",
+                "",
+            ]
+        )
+        payload.append(
+            {
+                "group_name": group_name,
+                "group_url": group_url,
+                "post_url": post.post_url,
+                "author": post.author_name,
+                "timestamp": post.timestamp,
+                "raw_text": post.raw_text,
+                "cleaned_text": post.cleaned_text,
+            }
+        )
+    text_path.write_text("\n".join(text_lines), encoding="utf-8")
+    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def scan_single_group(
     page,
     settings,
@@ -750,15 +880,19 @@ def scan_single_group(
             ]
         )
 
-    post_handles = collect_post_handles(
+    extracted_posts, visible_cards_found = collect_extracted_posts(
         page=page,
-        max_scrolls=settings.max_scrolls,
+        group_name=group_name,
+        group_url=group_url,
+        group_index=group_index,
+        max_scrolls=max(settings.max_scrolls, 4 if runtime.debug_scan else 10 if runtime.loose else 6),
         max_posts=requested_scan_depth,
         min_delay=settings.min_delay_seconds,
         max_delay=settings.max_delay_seconds,
+        debug_scan=runtime.debug_scan,
     )
-    stats.total_dom_cards_found = len(post_handles)
-    stats.actual_scan_depth_used = len(post_handles)
+    stats.total_dom_cards_found = visible_cards_found
+    stats.actual_scan_depth_used = len(extracted_posts)
 
     logger.info(
         "GROUP_SCAN_DEPTH | name=%s | url=%s | requested_depth=%s | actual_depth=%s | group_quality_score=%s",
@@ -772,21 +906,37 @@ def scan_single_group(
         "GROUP_POST_CONTAINERS | name=%s | url=%s | count=%s",
         group_name,
         group_url,
-        len(post_handles),
+        len(extracted_posts),
     )
 
-    for handle in post_handles:
+    if runtime.debug_scan:
+        save_group_debug_artifacts(group_index, group_name, group_url, extracted_posts)
+
+    if not extracted_posts:
+        stats.failure_reason = "extraction_failed"
+        logger.warning(
+            "GROUP_EXTRACTION_FAILED | group=%s | url=%s | visible_cards=%s | extracted=0",
+            group_name,
+            group_url,
+            visible_cards_found,
+        )
+        if runtime.debug_scan:
+            debug_lines.extend(
+                [
+                    f"visible_cards_found: {visible_cards_found}",
+                    "text_blocks_extracted: 0",
+                    "cleaned_posts: 0",
+                    "group_result: needs_review_extraction_failed",
+                    "",
+                ]
+            )
+        return stats
+
+    for extracted in extracted_posts:
         if stop_requested and stop_requested():
             stats.failure_reason = "stopped"
             raise ScanStopped("Scan stop requested during group processing.")
-        try:
-            raw_post = handle.evaluate(POST_EXTRACTION_SCRIPT)
-        except Exception as exc:  # noqa: BLE001
-            stats.extraction_failed += 1
-            logger.warning("POST_EXTRACTION_FAILED | group=%s | error=%s", group_name, exc)
-            continue
-
-        raw_text = (raw_post.get("text") or "").strip()
+        raw_text = extracted.raw_text
         if raw_text:
             stats.total_text_blocks_extracted += 1
             append_preview(stats.raw_text_previews, raw_text)
@@ -794,23 +944,23 @@ def scan_single_group(
             stats.extraction_failed += 1
             continue
 
-        cleaned_text = clean_post_text(raw_text)
+        cleaned_text = extracted.cleaned_text
         if cleaned_text:
             stats.total_cleaned_posts += 1
             append_preview(stats.cleaned_text_previews, cleaned_text)
         else:
             stats.empty_after_cleaning += 1
-        raw_url = normalize_facebook_url((raw_post.get("post_url") or "").strip()) or None
+        raw_url = extracted.post_url
         append_preview(stats.post_url_previews, raw_url)
         if len(cleaned_text) < 20:
             continue
 
         match = loose_match(cleaned_text, min_score=1) if runtime.loose else classify_post(cleaned_text, min_score=settings.min_keyword_score)
         candidate = PostCandidate(
-            post_key=build_post_key(raw_url, cleaned_text),
+            post_key=extracted.post_key,
             post_url=raw_url,
-            author_name=(raw_post.get("author") or "").strip() or None,
-            timestamp=(raw_post.get("timestamp") or "").strip() or None,
+            author_name=extracted.author_name,
+            timestamp=extracted.timestamp,
             raw_text=raw_text,
             text=cleaned_text,
             match=match,
@@ -845,6 +995,7 @@ def scan_single_group(
         debug_records.append(debug_record)
 
         if not candidate.match.is_relevant:
+            stats.hidden_by_scoring += 1
             if candidate.match.rejection_reason == "owner_or_advertiser_wording":
                 stats.posts_rejected_by_owner_keywords += 1
             elif candidate.match.rejection_reason == "unsuitable_event_request":
@@ -870,6 +1021,7 @@ def scan_single_group(
         maybe_apply_ai_scoring(settings, candidate, preview, group_name)
         if is_ai_rejected(settings, candidate, preview, group_name, loose=runtime.loose):
             stats.posts_rejected_by_ai += 1
+            stats.hidden_by_scoring += 1
             debug_record.reject_reason = "ai_rejected"
             if runtime.scan_run_id is not None:
                 candidate.scan_match_id = storage.save_scan_match(
@@ -1054,6 +1206,7 @@ def scan_single_group(
 
         if fit_rejected:
             debug_record.reject_reason = "fit_reject"
+            stats.hidden_by_scoring += 1
             if runtime.scan_run_id is not None:
                 candidate.scan_match_id = storage.save_scan_match(
                     runtime.scan_run_id,
@@ -1191,18 +1344,24 @@ def scan_single_group(
 
         human_delay(settings.min_delay_seconds, settings.max_delay_seconds)
 
+    if stats.total_text_blocks_extracted == 0 or stats.total_cleaned_posts == 0:
+        stats.failure_reason = stats.failure_reason or "extraction_failed"
+
     logger.info(
-        "GROUP_SCAN_DONE | name=%s | requested_depth=%s | actual_depth=%s | group_quality_score=%s | scanned=%s | matched=%s | hot_leads=%s | alerts=%s | dom_cards=%s | extracted=%s | cleaned=%s | extraction_failed=%s | empty_after_cleaning=%s | owner_rejected=%s | negative_rejected=%s | low_score_rejected=%s | ai_rejected=%s | passed_keyword=%s | leads_saved=%s | duplicate_seen=%s | duplicate_lead=%s",
+        "GROUP_SCAN_DONE | name=%s | url=%s | requested_depth=%s | actual_depth=%s | group_quality_score=%s | visible_cards=%s | text_blocks=%s | duplicates_skipped=%s | sent_to_scoring=%s | matched=%s | hidden_by_scoring=%s | hot_leads=%s | alerts=%s | cleaned=%s | extraction_failed=%s | empty_after_cleaning=%s | owner_rejected=%s | negative_rejected=%s | low_score_rejected=%s | ai_rejected=%s | passed_keyword=%s | leads_saved=%s | duplicate_lead=%s",
         stats.group_name,
+        stats.group_url,
         stats.requested_scan_depth,
         stats.actual_scan_depth_used,
         stats.group_quality_score,
-        stats.scanned,
-        stats.matched,
-        stats.hot_leads_found,
-        stats.alerts_sent,
         stats.total_dom_cards_found,
         stats.total_text_blocks_extracted,
+        stats.duplicate_seen,
+        stats.scanned,
+        stats.matched,
+        stats.hidden_by_scoring,
+        stats.hot_leads_found,
+        stats.alerts_sent,
         stats.total_cleaned_posts,
         stats.extraction_failed,
         stats.empty_after_cleaning,
@@ -1212,19 +1371,24 @@ def scan_single_group(
         stats.posts_rejected_by_ai,
         stats.posts_passed_keyword_score,
         stats.posts_saved_to_leads,
-        stats.duplicate_seen,
         stats.duplicate_lead,
     )
     if runtime.debug_scan:
         if stats.access_problem or not stats.login_valid:
             screenshot_path = capture_group_screenshot(page, screenshot_index)
             debug_lines.append(f"screenshot: {screenshot_path}")
+        elif stats.failure_reason == "extraction_failed":
+            screenshot_path = capture_group_screenshot(page, screenshot_index)
+            debug_lines.append(f"extraction_failure_screenshot: {screenshot_path}")
         debug_lines.extend(
             [
                 f"cards_found: {stats.total_dom_cards_found}",
                 f"actual_scan_depth_used: {stats.actual_scan_depth_used}",
                 f"text_blocks_extracted: {stats.total_text_blocks_extracted}",
                 f"cleaned_posts: {stats.total_cleaned_posts}",
+                f"sent_to_scoring: {stats.scanned}",
+                f"matched: {stats.matched}",
+                f"hidden_by_scoring: {stats.hidden_by_scoring}",
                 f"extraction_failed: {stats.extraction_failed}",
                 f"empty_after_cleaning: {stats.empty_after_cleaning}",
                 f"rejected_owner_ad: {stats.posts_rejected_by_owner_keywords}",
@@ -1236,6 +1400,7 @@ def scan_single_group(
                 f"saved: {stats.posts_saved_to_leads}",
                 f"hot_leads_found: {stats.hot_leads_found}",
                 f"telegram_sent: {stats.alerts_sent}",
+                f"group_status: {'needs_review' if stats.failure_reason == 'extraction_failed' else 'completed'}",
                 "first_5_raw_text_previews:",
                 *[f"  - {item}" for item in stats.raw_text_previews],
                 "first_5_cleaned_text_previews:",
@@ -1254,7 +1419,9 @@ def scan_single_group(
         counters={
             "cards_found": stats.total_dom_cards_found,
             "posts_extracted": stats.total_text_blocks_extracted,
+            "sent_to_scoring": stats.scanned,
             "posts_matched": stats.matched,
+            "hidden_by_scoring": stats.hidden_by_scoring,
             "leads_saved": stats.posts_saved_to_leads,
             "telegram_sent": stats.alerts_sent,
             "hot_leads": stats.hot_leads_found,
@@ -1422,18 +1589,19 @@ def run_scan(
     logger.info("SCAN SUMMARY")
     for stats in group_stats:
         logger.info(
-            "%s -> requested_depth=%s actual_depth=%s quality=%s scanned=%s matched=%s hot=%s saved=%s alerts=%s cards_found=%s extracted=%s cleaned=%s extraction_failed=%s empty_after_cleaning=%s owner_rejected=%s negative_rejected=%s low_score_rejected=%s ai_rejected=%s duplicate_seen=%s duplicate_lead=%s failure_reason=%s",
+            "%s -> requested_depth=%s actual_depth=%s quality=%s cards_found=%s extracted=%s sent_to_scoring=%s matched=%s hidden_by_scoring=%s hot=%s saved=%s alerts=%s cleaned=%s extraction_failed=%s empty_after_cleaning=%s owner_rejected=%s negative_rejected=%s low_score_rejected=%s ai_rejected=%s duplicate_seen=%s duplicate_lead=%s failure_reason=%s",
             stats.group_name,
             stats.requested_scan_depth,
             stats.actual_scan_depth_used,
             stats.group_quality_score,
+            stats.total_dom_cards_found,
+            stats.total_text_blocks_extracted,
             stats.scanned,
             stats.matched,
+            stats.hidden_by_scoring,
             stats.hot_leads_found,
             stats.posts_saved_to_leads,
             stats.alerts_sent,
-            stats.total_dom_cards_found,
-            stats.total_text_blocks_extracted,
             stats.total_cleaned_posts,
             stats.extraction_failed,
             stats.empty_after_cleaning,
@@ -1459,6 +1627,7 @@ def run_scan(
     total_rejected_ai = sum(stats.posts_rejected_by_ai for stats in group_stats)
     total_saved = sum(stats.posts_saved_to_leads for stats in group_stats)
     total_hot = sum(stats.hot_leads_found for stats in group_stats)
+    total_hidden_by_scoring = sum(stats.hidden_by_scoring for stats in group_stats)
     logger.info("TOTAL GROUPS: %s", len(group_stats))
     logger.info("GROUPS ACCESSIBLE: %s", accessible_groups)
     logger.info("GROUPS BLOCKED/NOT_JOINED: %s", blocked_groups)
@@ -1467,6 +1636,7 @@ def run_scan(
     logger.info("POSTS_MATCHING_LOOSE: %s", total_loose_matches)
     logger.info("POSTS_REJECTED_BY_KEYWORDS: %s", total_rejected_keywords)
     logger.info("POSTS_REJECTED_BY_AI: %s", total_rejected_ai)
+    logger.info("POSTS_HIDDEN_BY_SCORING: %s", total_hidden_by_scoring)
     logger.info("LEADS_SAVED: %s", total_saved)
     logger.info("HOT_LEADS_FOUND: %s", total_hot)
     if runtime.debug_scan:
@@ -1481,6 +1651,7 @@ def run_scan(
                 f"POSTS_MATCHING_LOOSE: {total_loose_matches}",
                 f"POSTS_REJECTED_BY_KEYWORDS: {total_rejected_keywords}",
                 f"POSTS_REJECTED_BY_AI: {total_rejected_ai}",
+                f"POSTS_HIDDEN_BY_SCORING: {total_hidden_by_scoring}",
                 f"LEADS_SAVED: {total_saved}",
                 f"HOT_LEADS_FOUND: {total_hot}",
             ]
@@ -1500,6 +1671,7 @@ def run_scan(
         "posts_matching_loose": total_loose_matches,
         "posts_rejected_by_keywords": total_rejected_keywords,
         "posts_rejected_by_ai": total_rejected_ai,
+        "posts_hidden_by_scoring": total_hidden_by_scoring,
         "leads_saved": total_saved,
         "hot_leads_found": total_hot,
         "telegram_sent": sum(stats.alerts_sent for stats in group_stats),

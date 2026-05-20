@@ -215,6 +215,8 @@ def _update_scan_from_event(scan_run_id: int, event: dict[str, Any]) -> None:
         group_status = "completed"
         if failure_reason == "stopped":
             group_status = "stopped"
+        elif failure_reason == "extraction_failed":
+            group_status = "needs_review"
         elif failure_reason:
             group_status = "failed"
         storage.save_scan_group_result(
