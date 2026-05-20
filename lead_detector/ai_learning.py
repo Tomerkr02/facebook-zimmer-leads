@@ -95,8 +95,39 @@ class AILearningEngine:
                 new_signal_hits=new_signal_hits,
             )
             enriched.append(item)
-        enriched.sort(key=lambda lead: (lead.get("review_priority_score") or 0, lead.get("created_at") or ""), reverse=True)
+        enriched.sort(key=lambda lead: (lead.get("review_priority_score") or 0, lead.get("relevance_score") or 0, lead.get("created_at") or ""), reverse=True)
         return enriched
+
+    def score_learning_adjustment(self, lead: dict[str, Any]) -> dict[str, Any]:
+        total_delta = 0
+        reasons: list[str] = []
+        positive_hits = 0
+        negative_hits = 0
+        for signal_type, signal_value in self.extract_signals(lead):
+            memory = self.storage.get_ai_memory_signal(signal_type, signal_value)
+            if not memory:
+                continue
+            confidence = float(memory.get("confidence_score") or 0)
+            positive = int(memory.get("positive_count") or 0) + int(memory.get("vip_count") or 0)
+            negative = int(memory.get("negative_count") or 0)
+            if positive >= negative + 2 and confidence >= 0.35:
+                delta = 6 if confidence >= 0.65 else 3
+                total_delta += delta
+                positive_hits += 1
+                if len(reasons) < 3:
+                    reasons.append(f"signal חיובי חוזר: {signal_value}")
+            elif negative >= positive + 1 and confidence >= 0.25:
+                delta = -10 if confidence >= 0.65 else -5
+                total_delta += delta
+                negative_hits += 1
+                if len(reasons) < 3:
+                    reasons.append(f"signal שלילי חוזר: {signal_value}")
+        return {
+            "relevance_delta": max(-20, min(15, total_delta)),
+            "learning_reasons": reasons,
+            "positive_hits": positive_hits,
+            "negative_hits": negative_hits,
+        }
 
     def learning_analytics(self) -> dict[str, Any]:
         return self.storage.learning_analytics()
@@ -133,7 +164,7 @@ class AILearningEngine:
         return sorted(phrases)
 
     def _feedback_deltas(self, feedback_type: str) -> dict[str, int]:
-        if feedback_type in {"good_lead", "closed_successfully"}:
+        if feedback_type in {"good_lead", "closed_successfully", "contacted", "flyer_sent"}:
             return {"positive": 1, "negative": 0, "vip": 0}
         if feedback_type == "perfect_match":
             return {"positive": 1, "negative": 0, "vip": 1}
@@ -175,9 +206,11 @@ class AILearningEngine:
             score += 4
         if (lead.get("urgency") or "") in {"today", "tomorrow", "weekend", "shabbat"}:
             score += 3
-        if int(lead.get("heat_score") or 0) >= 7:
+        if int(lead.get("relevance_score") or 0) in range(50, 70):
+            score += 4
+        if int(lead.get("heat_score") or 0) >= 70:
             score += 2
-        if int(lead.get("fit_score") or 0) in {4, 5, 6}:
+        if int(lead.get("fit_score") or 0) in range(45, 70):
             score += 2
         if lead.get("vip_match"):
             score += 1

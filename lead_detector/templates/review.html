@@ -44,6 +44,7 @@
 
       <div class="metric-row">
         <span>Intent <strong>{{ lead.intent_score if lead.intent_score is not none else "-" }}</strong></span>
+        <span>Relevance <strong>{{ lead.relevance_score if lead.relevance_score is not none else "-" }}</strong></span>
         <span>Fit <strong>{{ lead.fit_score if lead.fit_score is not none else "-" }}</strong></span>
         <span>Vibe <strong>{{ lead.vibe_score if lead.vibe_score is not none else "-" }}</strong></span>
         <span>Heat <strong>{{ lead.heat_score if lead.heat_score is not none else "-" }}</strong></span>
@@ -55,10 +56,10 @@
       <section class="reply-block">
         <strong>למה ה-AI חשב שזה רלוונטי</strong>
         <div class="check-list">
-          {% for item in lead.intent_reasons_list[:6] %}
+          {% for item in lead.matched_rules_list[:6] %}
           <div>✔ {{ item }}</div>
           {% else %}
-          <div>{{ lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "אין עדיין הסבר שמור" }}</div>
+          <div>{{ lead.decision_explanation_he or lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "אין עדיין הסבר שמור" }}</div>
           {% endfor %}
         </div>
       </section>
@@ -82,6 +83,14 @@
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="good_lead">
           <button type="submit" class="ghost-button">👍 Good Lead</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="flyer_sent">
+          <button type="submit" class="ghost-button">🖼️ Flyer sent</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="contacted">
+          <button type="submit" class="ghost-button">✅ Contacted</button>
         </form>
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="perfect_match">
@@ -114,6 +123,10 @@
         <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
           <input type="hidden" name="action" value="owner_ad">
           <button type="submit" class="ghost-button">🏠 Owner Ad</button>
+        </form>
+        <form method="post" action="{{ url_for('review_feedback_update', lead_id=lead.id) }}">
+          <input type="hidden" name="action" value="archive">
+          <button type="submit" class="ghost-button">📦 Archive</button>
         </form>
       </div>
     </article>

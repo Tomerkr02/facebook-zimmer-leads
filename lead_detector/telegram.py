@@ -30,7 +30,6 @@ def build_alert_message(
     group_name: str | None,
     group_url: str,
     ai_reason_he: str | None,
-    suggested_reply_he: str | None,
     ai_category: str | None,
     ai_score: int | None,
     intent_score: int | None,
@@ -46,6 +45,11 @@ def build_alert_message(
     urgency: str | None,
     requested_area: str | None,
     pool_intent: str | None,
+    relevance_score: int | None,
+    decision_bucket: str | None,
+    decision_explanation_he: str | None,
+    weakness_reasons: list[str] | None,
+    disqualification_risks: list[str] | None,
     ai_result: AIScoreResult | None = None,
 ) -> str:
     keywords_text = ", ".join(match_result.matched_keywords) or "-"
@@ -56,7 +60,6 @@ def build_alert_message(
     ai_score_text = f"{ai_score}/10" if ai_score is not None else "לא זמין"
     category_text = ai_category or (ai_result.category if ai_result else "-")
     reason_text = ai_reason_he or (ai_result.reason_he if ai_result else "ליד שעבר סינון מילות מפתח.")
-    reply_text = suggested_reply_he or (ai_result.suggested_reply_he if ai_result else "לא זמין")
     heat_text = HEAT_LABELS.get((heat_level or "").strip().lower(), heat_level or "-")
     compact_heat = "HOT" if (heat_label or "").lower() == "hot" else "WARM" if (heat_label or "").lower() == "warm" else "COLD"
     short_reason = " + ".join((heat_reasons or [])[:3]) or (fit_reason_he or reason_text)
@@ -76,7 +79,9 @@ def build_alert_message(
         f"Heat Score: {heat_score if heat_score is not None else '-'}\n"
         f"Conversion Score: {conversion_score if conversion_score is not None else '-'}\n"
         f"Vibe Score: {vibe_score if vibe_score is not None else '-'}\n"
+        f"Relevance Score: {relevance_score if relevance_score is not None else '-'}\n"
         f"רמת חום: {heat_label or heat_level or '-'}\n"
+        f"החלטה: {decision_bucket or '-'}\n"
         f"סוג אורח: {guest_type or '-'}\n"
         f"דחיפות: {urgency or '-'}\n"
         f"אזור: {requested_area or '-'}\n"
@@ -87,8 +92,12 @@ def build_alert_message(
         f"קטגוריה: {category_text}\n\n"
         "סיבת התאמה:\n"
         f"{reason_text}\n\n"
-        "הצעת תגובה:\n"
-        f"{reply_text}\n\n"
+        "הסבר החלטה:\n"
+        f"{decision_explanation_he or '-'}\n\n"
+        "נקודות חולשה:\n"
+        f"{', '.join(weakness_reasons or []) or '-'}\n\n"
+        "סיכוני פסילה:\n"
+        f"{', '.join(disqualification_risks or []) or '-'}\n\n"
         "התאמות:\n"
         f"{keywords_text}\n\n"
         "סיבות כוונה:\n"

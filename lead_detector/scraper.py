@@ -11,11 +11,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 from playwright.sync_api import Browser, BrowserContext, ElementHandle, sync_playwright
 
+from ai_learning import AILearningEngine
 from ai_scorer import AIScoreResult, is_text_reasonable_for_ai, score_post_with_ai
 from config import load_settings
 from lead_intelligence import analyze_lead_intelligence
 from matcher import EXCLUDE_KEYWORDS, NEGATIVE_REQUEST_KEYWORDS, MatchResult, classify_post
-from reply_suggestions import generate_reply_suggestion
 from storage import LeadStorage
 from telegram import build_alert_message, send_message
 
@@ -714,6 +714,7 @@ def scan_single_group(
 
     group_name = detect_group_name(page, group_url)
     stats = GroupScanStats(group_name=group_name, group_url=group_url)
+    learning_engine = AILearningEngine(storage)
     requested_scan_depth, group_quality_score = determine_scan_depth(runtime, settings, storage, group_name, group_url)
     stats.requested_scan_depth = requested_scan_depth
     stats.group_quality_score = group_quality_score
@@ -893,14 +894,21 @@ def scan_single_group(
 
         ai_category = infer_category(candidate)
         ai_reason_he = infer_reason_he(candidate, group_name)
-        suggested_reply_he = (
-            candidate.ai_result.suggested_reply_he
-            if candidate.ai_result and candidate.ai_result.suggested_reply_he
-            else generate_reply_suggestion(
-                cleaned_text=candidate.text,
-                ai_category=ai_category,
-                matched_keywords=candidate.match.matched_keywords,
-            )
+        learning_adjustment = learning_engine.score_learning_adjustment(
+            {
+                "cleaned_text": candidate.text,
+                "post_text": candidate.raw_text,
+                "matched_keywords_list": candidate.match.matched_keywords,
+                "intent_reasons_list": candidate.match.intent_reasons,
+                "urgency_reasons_list": candidate.match.urgency_reasons,
+                "bad_fit_reasons_list": candidate.match.matched_negative_keywords,
+                "lead_type": ai_category,
+                "guest_type": None,
+                "requested_area": None,
+                "pool_intent": None,
+                "privacy_intent": None,
+                "budget_signal": None,
+            }
         )
         intelligence = analyze_lead_intelligence(
             cleaned_text=candidate.text,
@@ -909,10 +917,10 @@ def scan_single_group(
             openai_api_key=settings.openai_api_key,
             post_timestamp=candidate.timestamp,
             repeated_author_count=count_author_repetition(storage, candidate.author_name),
+            learning_adjustment=learning_adjustment,
         )
-        suggested_reply_he = intelligence.suggested_first_reply_he or suggested_reply_he
-        fit_rejected = intelligence.heat_level == "reject"
-        lead_status = "not_relevant" if fit_rejected else "new"
+        fit_rejected = intelligence.decision_bucket == "hidden"
+        lead_status = "not_relevant" if (fit_rejected and (intelligence.owner_advertisement or intelligence.reject_reason_he)) else "new"
 
         lead_action = "debug_only"
         if runtime.persist_leads:
@@ -929,7 +937,7 @@ def scan_single_group(
                 ai_score=candidate.ai_result.score if candidate.ai_result else None,
                 ai_category=ai_category,
                 ai_reason_he=ai_reason_he,
-                suggested_reply_he=suggested_reply_he,
+                suggested_reply_he=None,
                 guest_type=intelligence.guest_type,
                 urgency=intelligence.urgency,
                 requested_area=intelligence.requested_area,
@@ -967,6 +975,16 @@ def scan_single_group(
                 heat_score=intelligence.heat_score,
                 heat_label=intelligence.heat_label,
                 heat_reasons_json=json.dumps(intelligence.heat_reasons_json, ensure_ascii=False),
+                location_score=intelligence.location_score,
+                privacy_score=intelligence.privacy_score,
+                timing_score=intelligence.timing_score,
+                budget_score=intelligence.budget_score,
+                relevance_score=intelligence.relevance_score,
+                decision_bucket=intelligence.decision_bucket,
+                decision_explanation_he=intelligence.decision_explanation_he,
+                matched_rules_json=json.dumps(intelligence.matched_rules_json, ensure_ascii=False),
+                weakness_reasons_json=json.dumps(intelligence.weakness_reasons_json, ensure_ascii=False),
+                disqualification_risks_json=json.dumps(intelligence.disqualification_risks_json, ensure_ascii=False),
                 conversion_score=intelligence.conversion_score,
                 vibe_score=intelligence.vibe_score,
                 vip_match=intelligence.vip_match,
@@ -1065,8 +1083,9 @@ def scan_single_group(
             )
             continue
 
-        stats.matched += 1
-        if intelligence.heat_score >= 80:
+        if intelligence.decision_bucket == "show":
+            stats.matched += 1
+        if intelligence.heat_score >= 80 and intelligence.decision_bucket == "show":
             stats.hot_leads_found += 1
         debug_record.reject_reason = None
         if runtime.scan_run_id is not None:
@@ -1113,7 +1132,6 @@ def scan_single_group(
             group_name=group_name,
             group_url=group_url,
             ai_reason_he=ai_reason_he,
-            suggested_reply_he=suggested_reply_he,
             ai_category=ai_category,
             ai_score=candidate.ai_result.score if candidate.ai_result else None,
             intent_score=intelligence.intent_score,
@@ -1129,9 +1147,23 @@ def scan_single_group(
             urgency=intelligence.urgency,
             requested_area=intelligence.requested_area,
             pool_intent=intelligence.pool_intent,
+            relevance_score=intelligence.relevance_score,
+            decision_bucket=intelligence.decision_bucket,
+            decision_explanation_he=intelligence.decision_explanation_he,
+            weakness_reasons=intelligence.weakness_reasons_json,
+            disqualification_risks=intelligence.disqualification_risks_json,
             ai_result=candidate.ai_result,
         )
-        if not runtime.send_telegram:
+        if intelligence.decision_bucket != "show":
+            logger.info(
+                "ALERT_SKIPPED_NON_STRONG | group=%s | lead_id=%s | decision=%s | relevance=%s | preview=%s",
+                group_name,
+                candidate.lead_id,
+                intelligence.decision_bucket,
+                intelligence.relevance_score,
+                preview,
+            )
+        elif not runtime.send_telegram:
             logger.info(
                 "ALERT_SKIPPED_DEBUG | group=%s | key=%s | preview=%s",
                 group_name,

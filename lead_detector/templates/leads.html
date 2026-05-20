@@ -15,12 +15,14 @@
     </div>
     <div class="stats-grid kpi-grid">
       <a class="stat-card stat-strong clickable-card" href="{{ url_for('leads_all_page') }}"><strong>{{ stats.total_leads }}</strong><span>סה"כ לידים</span></a>
-      <a class="stat-card hot clickable-card" href="{{ url_for('leads_page') }}?view=hot"><strong>{{ stats.hot_leads }}</strong><span>Hot Leads</span></a>
+      <a class="stat-card hot clickable-card" href="{{ url_for('leads_page') }}?view=strong"><strong>{{ stats.strong_leads }}</strong><span>Strong Leads</span></a>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?view=vip"><strong>{{ stats.vip_leads }}</strong><span>VIP Matches</span></a>
       <div class="stat-card warm"><strong>{{ stats.warm_leads }}</strong><span>חמים חלקית</span></div>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=new"><strong>{{ stats.new_leads }}</strong><span>חדשים</span></a>
-      <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?view=unreviewed"><strong>{{ stats.unreviewed }}</strong><span>Review Queue</span></a>
+      <a class="stat-card clickable-card" href="{{ url_for('review_page') }}"><strong>{{ stats.review_leads }}</strong><span>Review Queue</span></a>
+      <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?view=hidden&show_all=1"><strong>{{ stats.hidden_leads }}</strong><span>Hidden</span></a>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?view=reviewed"><strong>{{ stats.reviewed }}</strong><span>Reviewed</span></a>
+      <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=flyer_sent"><strong>{{ stats.flyer_sent }}</strong><span>Flyer Sent</span></a>
       <a class="stat-card clickable-card" href="{{ url_for('leads_page') }}?status=closed"><strong>{{ stats.closed }}</strong><span>נסגרו</span></a>
       <a class="stat-card reject clickable-card" href="{{ url_for('rejected_page') }}"><strong>{{ stats.rejected }}</strong><span>נדחו / לא רלוונטיים</span></a>
       <a class="stat-card clickable-card" href="{{ url_for('archived_page') }}"><strong>{{ stats.archived }}</strong><span>בארכיון</span></a>
@@ -98,7 +100,9 @@
     </div>
   </div>
   <div class="keyword-list quick-view-row">
-    <a class="keyword{% if not filters.view and not filters.status and not filters.telegram_sent and not filters.vip_only and not filters.feedback_state and not filters.matched_only %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}">All</a>
+    <a class="keyword{% if filters.decision_bucket == 'show' or (not filters.view and not filters.status and not filters.telegram_sent and not filters.vip_only and not filters.feedback_state and not filters.matched_only) %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}">Strong Leads</a>
+    <a class="keyword{% if filters.decision_bucket == 'review' %} keyword-active{% endif %}" href="{{ url_for('review_page') }}">Review</a>
+    <a class="keyword{% if filters.decision_bucket == 'hidden' or filters.view == 'hidden' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=hidden&show_all=1">Hidden</a>
     <a class="keyword{% if filters.view == 'vip' or filters.vip_only %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=vip">VIP</a>
     <a class="keyword{% if filters.view == 'hot' or filters.heat_label == 'hot' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=hot">Hot Leads</a>
     <a class="keyword{% if filters.view == 'warm' or filters.heat_label == 'warm' %} keyword-active{% endif %}" href="{{ url_for('leads_page') }}?view=warm">Warm Leads</a>
@@ -126,6 +130,7 @@
     {% if filters.telegram_sent %}<input type="hidden" name="telegram_sent" value="1">{% endif %}
     {% if filters.show_all %}<input type="hidden" name="show_all" value="1">{% endif %}
     {% if filters.view %}<input type="hidden" name="view" value="{{ filters.view }}">{% endif %}
+    {% if filters.decision_bucket %}<input type="hidden" name="decision_bucket" value="{{ filters.decision_bucket }}">{% endif %}
     <label>
       חיפוש חופשי
       <input type="text" name="search" value="{{ filters.search }}" placeholder="טקסט פוסט, שם קבוצה, כותב...">
@@ -193,6 +198,15 @@
         {% endfor %}
       </select>
     </label>
+    <label>
+      החלטה
+      <select name="decision_bucket">
+        <option value="">הכל</option>
+        <option value="show" {% if filters.decision_bucket == 'show' %}selected{% endif %}>Show</option>
+        <option value="review" {% if filters.decision_bucket == 'review' %}selected{% endif %}>Review</option>
+        <option value="hidden" {% if filters.decision_bucket == 'hidden' %}selected{% endif %}>Hidden</option>
+      </select>
+    </label>
     <label class="check-option"><input type="checkbox" name="religious_only" value="1" {% if filters.religious_only %}checked{% endif %}> דתיים</label>
     <label class="check-option"><input type="checkbox" name="romantic_only" value="1" {% if filters.romantic_only %}checked{% endif %}> רומנטי</label>
     <label class="check-option"><input type="checkbox" name="family_only" value="1" {% if filters.family_only %}checked{% endif %}> משפחה</label>
@@ -242,6 +256,7 @@
     {% if filters.status %}<span class="keyword">סטטוס: {{ filters.status|status_label }}</span>{% endif %}
     {% if filters.heat_level %}<span class="keyword">חום: {{ filters.heat_level|heat_label }}</span>{% endif %}
     {% if filters.heat_label %}<span class="keyword">Heat Label: {{ filters.heat_label|upper }}</span>{% endif %}
+    {% if filters.decision_bucket %}<span class="keyword">החלטה: {{ filters.decision_bucket|upper }}</span>{% endif %}
     {% if filters.created_date == 'today' %}<span class="keyword">תאריך: היום</span>{% endif %}
     {% if filters.search %}<span class="keyword">חיפוש: {{ filters.search }}</span>{% endif %}
     {% if filters.scan_run_id %}<span class="keyword">סריקה: #{{ filters.scan_run_id }}</span>{% endif %}
@@ -287,6 +302,7 @@
           {% if lead.perfect_match and (lead.heat_score or 0) >= 80 %}<span class="vip-pill">👑 HOT PERFECT MATCH</span>{% elif lead.perfect_match %}<span class="vip-pill">👑 PERFECT MATCH</span>{% endif %}
           <span class="heat heat-{{ lead.heat_level or 'cold' }}">{{ (lead.heat_level or 'cold')|heat_icon }} {{ (lead.heat_level or 'cold')|heat_label }}</span>
           <span class="status status-{{ lead.status }}">{{ lead.status|status_label }}</span>
+          <span class="keyword">{{ (lead.decision_bucket or 'review')|upper }}</span>
         </div>
       </div>
 
@@ -295,6 +311,7 @@
         <span>מילים <strong>{{ lead.keyword_score }}</strong></span>
         <span>כוונה <strong>{{ lead.intent_score if lead.intent_score is not none else "-" }}</strong></span>
         <span>חום <strong>{{ lead.heat_score if lead.heat_score is not none else "-" }}</strong></span>
+        <span>רלוונטיות <strong>{{ lead.relevance_score if lead.relevance_score is not none else "-" }}</strong></span>
         <span>Heat Label <strong>{{ (lead.heat_label or 'cold')|upper }}</strong></span>
         <span>סגירה <strong>{{ lead.conversion_score if lead.conversion_score is not none else "-" }}</strong></span>
         <span>וייב <strong>{{ lead.vibe_score if lead.vibe_score is not none else "-" }}</strong></span>
@@ -314,10 +331,13 @@
         {% if lead.family_signal %}<span class="keyword">משפחה</span>{% endif %}
         {% if lead.status == 'not_relevant' %}<span class="keyword keyword-negative">לא רלוונטי</span>{% endif %}
         {% if lead.heat_level == 'reject' %}<span class="keyword keyword-negative">Rejected</span>{% endif %}
+        {% if lead.decision_bucket == 'review' %}<span class="keyword">Review</span>{% endif %}
+        {% if lead.decision_bucket == 'hidden' %}<span class="keyword keyword-negative">Hidden</span>{% endif %}
         {% if (lead.heat_level or 'cold') == 'cold' %}<span class="keyword">Cold</span>{% endif %}
         {% if lead.owner_advertisement %}<span class="keyword keyword-negative">Owner Ad</span>{% endif %}
         {% if lead.pet_request %}<span class="keyword keyword-negative">Pets Reject</span>{% endif %}
         {% if lead.group_size_estimate and lead.group_size_estimate >= 6 or lead.guest_type == 'large_group' %}<span class="keyword keyword-negative">גדול מדי</span>{% endif %}
+        {% if lead.status == 'flyer_sent' %}<span class="keyword">Flyer sent</span>{% endif %}
         {% if lead.followup_recommended %}<span class="keyword keyword-attention">🔔 Follow-up recommended</span>{% endif %}
       </div>
 
@@ -340,21 +360,8 @@
       <p class="lead-preview">{{ (lead.cleaned_text or lead.post_text or "")[:320] }}{% if (lead.cleaned_text or lead.post_text or "")|length > 320 %}...{% endif %}</p>
 
       <section class="reply-block">
-        <div class="reply-head">
-          <strong>תגובה ראשונה מוצעת</strong>
-          <button
-            type="button"
-            class="copy-button"
-            onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
-          >
-            העתקה
-          </button>
-        </div>
-        <p>{{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "אין הצעה זמינה")[:190] }}{% if (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|length > 190 %}...{% endif %}</p>
-      </section>
-      <section class="reply-block">
         <strong>למה המערכת חושבת שזה ליד טוב</strong>
-        <p>{{ lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "-" }}</p>
+        <p>{{ lead.decision_explanation_he or lead.ai_explanation_he or lead.fit_reason_he or lead.short_reason_he or "-" }}</p>
       </section>
       <section class="reply-block">
         <strong>Why this lead matters</strong>
@@ -369,18 +376,28 @@
       <section class="reply-block">
         <strong>למה זה ליד טוב</strong>
         <div class="check-list">
-          {% for item in lead.intent_reasons_list[:6] %}
+          {% for item in lead.matched_rules_list[:6] %}
           <div>✔ {{ item }}</div>
           {% else %}
           <div class="muted">אין פירוט נוסף</div>
           {% endfor %}
         </div>
       </section>
+      {% if lead.weakness_reasons_list %}
+      <section class="reply-block">
+        <strong>למה זה עלול להיות חלש</strong>
+        <div class="check-list">
+          {% for item in lead.weakness_reasons_list[:5] %}
+          <div>• {{ item }}</div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
       {% if lead.bad_fit_reasons_list %}
       <section class="reply-block">
         <strong>למה זה לא מתאים</strong>
         <div class="check-list reject-list">
-          {% for item in lead.bad_fit_reasons_list[:6] %}
+          {% for item in lead.disqualification_risks_list[:6] or lead.bad_fit_reasons_list[:6] %}
           <div>✖ {{ item }}</div>
           {% endfor %}
         </div>
@@ -388,14 +405,14 @@
       {% endif %}
 
       <div class="action-bar">
-        <button
-          type="button"
-          class="ghost-button"
-          onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
-        >📋 Copy reply</button>
         {% if lead.post_url %}
         <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">💬 Open Facebook post</a>
         {% endif %}
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="flyer_sent">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button type="submit" class="ghost-button">🖼️ Flyer sent</button>
+        </form>
         <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
           <input type="hidden" name="status" value="contacted">
           <input type="hidden" name="next" value="{{ request.full_path }}">

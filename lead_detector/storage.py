@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_LEAD_STATUSES = {
     "new",
     "contacted",
+    "flyer_sent",
     "waiting_reply",
     "not_relevant",
     "closed",
@@ -34,6 +35,9 @@ ALLOWED_FEEDBACK_TYPES = {
     "good_lead",
     "bad_lead",
     "perfect_match",
+    "contacted",
+    "flyer_sent",
+    "archived",
     "closed_successfully",
     "irrelevant",
     "too_expensive",
@@ -353,6 +357,16 @@ class LeadStorage:
             "heat_score": "INTEGER DEFAULT 0",
             "heat_label": "TEXT",
             "heat_reasons_json": "TEXT",
+            "location_score": "INTEGER DEFAULT 0",
+            "privacy_score": "INTEGER DEFAULT 0",
+            "timing_score": "INTEGER DEFAULT 0",
+            "budget_score": "INTEGER DEFAULT 0",
+            "relevance_score": "INTEGER DEFAULT 0",
+            "decision_bucket": "TEXT DEFAULT 'review'",
+            "decision_explanation_he": "TEXT",
+            "matched_rules_json": "TEXT",
+            "weakness_reasons_json": "TEXT",
+            "disqualification_risks_json": "TEXT",
             "conversion_score": "INTEGER DEFAULT 0",
             "vibe_score": "INTEGER DEFAULT 0",
             "vip_match": "INTEGER DEFAULT 0",
@@ -867,6 +881,7 @@ class LeadStorage:
             "requested_area",
             "ai_category",
             "lead_type",
+            "decision_bucket",
         ]
         options: dict[str, list[str]] = {}
         with self._connect() as connection:
@@ -935,6 +950,16 @@ class LeadStorage:
         heat_score: int = 0,
         heat_label: str | None = None,
         heat_reasons_json: str | None = None,
+        location_score: int = 0,
+        privacy_score: int = 0,
+        timing_score: int = 0,
+        budget_score: int = 0,
+        relevance_score: int = 0,
+        decision_bucket: str | None = None,
+        decision_explanation_he: str | None = None,
+        matched_rules_json: str | None = None,
+        weakness_reasons_json: str | None = None,
+        disqualification_risks_json: str | None = None,
         conversion_score: int = 0,
         vibe_score: int = 0,
         vip_match: bool = False,
@@ -1036,6 +1061,16 @@ class LeadStorage:
                             heat_score = ?,
                             heat_label = COALESCE(?, heat_label),
                             heat_reasons_json = COALESCE(?, heat_reasons_json),
+                            location_score = ?,
+                            privacy_score = ?,
+                            timing_score = ?,
+                            budget_score = ?,
+                            relevance_score = ?,
+                            decision_bucket = COALESCE(?, decision_bucket),
+                            decision_explanation_he = COALESCE(?, decision_explanation_he),
+                            matched_rules_json = COALESCE(?, matched_rules_json),
+                            weakness_reasons_json = COALESCE(?, weakness_reasons_json),
+                            disqualification_risks_json = COALESCE(?, disqualification_risks_json),
                             conversion_score = ?,
                             vibe_score = ?,
                             vip_match = ?,
@@ -1105,6 +1140,16 @@ class LeadStorage:
                             heat_score,
                             heat_label,
                             heat_reasons_json,
+                            location_score,
+                            privacy_score,
+                            timing_score,
+                            budget_score,
+                            relevance_score,
+                            decision_bucket,
+                            decision_explanation_he,
+                            matched_rules_json,
+                            weakness_reasons_json,
+                            disqualification_risks_json,
                             conversion_score,
                             vibe_score,
                             1 if vip_match else 0,
@@ -1187,6 +1232,16 @@ class LeadStorage:
                     "heat_score",
                     "heat_label",
                     "heat_reasons_json",
+                    "location_score",
+                    "privacy_score",
+                    "timing_score",
+                    "budget_score",
+                    "relevance_score",
+                    "decision_bucket",
+                    "decision_explanation_he",
+                    "matched_rules_json",
+                    "weakness_reasons_json",
+                    "disqualification_risks_json",
                     "conversion_score",
                     "vibe_score",
                     "vip_match",
@@ -1257,6 +1312,16 @@ class LeadStorage:
                     heat_score,
                     heat_label,
                     heat_reasons_json,
+                    location_score,
+                    privacy_score,
+                    timing_score,
+                    budget_score,
+                    relevance_score,
+                    decision_bucket,
+                    decision_explanation_he,
+                    matched_rules_json,
+                    weakness_reasons_json,
+                    disqualification_risks_json,
                     conversion_score,
                     vibe_score,
                     1 if vip_match else 0,
@@ -1339,6 +1404,7 @@ class LeadStorage:
         requested_area: str | None = None,
         ai_category: str | None = None,
         lead_type: str | None = None,
+        decision_bucket: str | None = None,
         religious_only: bool = False,
         romantic_only: bool = False,
         family_only: bool = False,
@@ -1361,20 +1427,28 @@ class LeadStorage:
     ) -> list[dict[str, Any]]:
         sort_mapping = {
             "priority": """
+                CASE decision_bucket
+                    WHEN 'show' THEN 3
+                    WHEN 'review' THEN 2
+                    WHEN 'hidden' THEN 1
+                    ELSE 0
+                END DESC,
                 CASE heat_level
-                    WHEN 'ultra_hot' THEN 6
-                    WHEN 'hot' THEN 5
-                    WHEN 'warm' THEN 4
-                    WHEN 'cold' THEN 2
+                    WHEN 'ultra_hot' THEN 7
+                    WHEN 'hot' THEN 6
+                    WHEN 'warm' THEN 5
+                    WHEN 'cold' THEN 3
                     WHEN 'reject' THEN 1
                     ELSE 0
                 END DESC,
                 COALESCE(vip_match, 0) DESC,
+                COALESCE(relevance_score, 0) DESC,
                 COALESCE(fit_score, 0) DESC,
                 datetime(created_at) DESC,
                 id DESC
             """,
             "newest": "datetime(created_at) DESC, id DESC",
+            "relevance_score": "COALESCE(relevance_score, 0) DESC, datetime(created_at) DESC, id DESC",
             "heat_score": "COALESCE(heat_score, 0) DESC, datetime(created_at) DESC, id DESC",
             "fit_score": "fit_score DESC, datetime(created_at) DESC",
             "vip_first": "COALESCE(vip_match, 0) DESC, COALESCE(heat_score, 0) DESC, datetime(created_at) DESC",
@@ -1433,6 +1507,9 @@ class LeadStorage:
         if lead_type:
             filters.append("lead_type = ?")
             params.append(lead_type)
+        if decision_bucket:
+            filters.append("decision_bucket = ?")
+            params.append(decision_bucket)
         if scan_run_id is not None:
             filters.append("scan_run_id = ?")
             params.append(scan_run_id)
@@ -1456,7 +1533,7 @@ class LeadStorage:
             filters.append("COALESCE(heat_level, 'cold') != 'reject'")
         if rejected_only:
             filters.append("(COALESCE(status, 'new') = 'not_relevant' OR COALESCE(heat_level, 'cold') = 'reject')")
-        if not include_owner_ads and not owner_ads_only and not show_all:
+        if not include_owner_ads and not owner_ads_only and not show_all and decision_bucket != "hidden":
             filters.append("COALESCE(owner_advertisement, 0) = 0")
         if religious_only:
             filters.append("religious_signal = 1")
@@ -1494,6 +1571,7 @@ class LeadStorage:
         requested_area = filters.get("requested_area")
         ai_category = filters.get("ai_category")
         lead_type = filters.get("lead_type")
+        decision_bucket = filters.get("decision_bucket")
         religious_only = bool(filters.get("religious_only"))
         romantic_only = bool(filters.get("romantic_only"))
         family_only = bool(filters.get("family_only"))
@@ -1540,6 +1618,9 @@ class LeadStorage:
         if lead_type:
             clauses.append("lead_type = ?")
             params.append(lead_type)
+        if decision_bucket:
+            clauses.append("decision_bucket = ?")
+            params.append(decision_bucket)
         if scan_run_id is not None:
             clauses.append("scan_run_id = ?")
             params.append(scan_run_id)
@@ -1563,7 +1644,7 @@ class LeadStorage:
             clauses.append("COALESCE(heat_level, 'cold') != 'reject'")
         if rejected_only:
             clauses.append("(COALESCE(status, 'new') = 'not_relevant' OR COALESCE(heat_level, 'cold') = 'reject')")
-        if not include_owner_ads and not owner_ads_only and not show_all:
+        if not include_owner_ads and not owner_ads_only and not show_all and decision_bucket != "hidden":
             clauses.append("COALESCE(owner_advertisement, 0) = 0")
         if religious_only:
             clauses.append("religious_signal = 1")
@@ -1595,8 +1676,9 @@ class LeadStorage:
                 FROM leads
                 WHERE COALESCE(status, 'new') != 'archived'
                   AND COALESCE(status, 'new') != 'closed'
+                  AND COALESCE(decision_bucket, 'review') = 'review'
                   AND feedback_at IS NULL
-                ORDER BY datetime(created_at) DESC, id DESC
+                ORDER BY COALESCE(relevance_score, 0) DESC, datetime(created_at) DESC, id DESC
                 LIMIT ?
                 """,
                 (limit,),
@@ -1835,10 +1917,14 @@ class LeadStorage:
             warm = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND heat_level = 'warm'").fetchone()["count"])
             new_leads = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'new'").fetchone()["count"])
             contacted = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status IN ('contacted', 'waiting_reply')").fetchone()["count"])
+            flyer_sent = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'flyer_sent'").fetchone()["count"])
             closed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND status = 'closed'").fetchone()["count"])
             vip = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(vip_match, 0) = 1").fetchone()["count"])
             reviewed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND feedback_at IS NOT NULL").fetchone()["count"])
             unreviewed = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND feedback_at IS NULL").fetchone()["count"])
+            strong = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(decision_bucket, 'review') = 'show'").fetchone()["count"])
+            review = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(decision_bucket, 'review') = 'review'").fetchone()["count"])
+            hidden = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(decision_bucket, 'review') = 'hidden'").fetchone()["count"])
             telegram = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND COALESCE(sent_to_telegram, 0) = 1").fetchone()["count"])
             matches = int(connection.execute(f"SELECT COUNT(*) AS count FROM leads{visible_where} AND (COALESCE(keyword_score, 0) > 0 OR COALESCE(intent_score, 0) > 0)").fetchone()["count"])
             rejected = int(connection.execute("SELECT COUNT(*) AS count FROM leads WHERE status = 'not_relevant' OR heat_level = 'reject' OR owner_advertisement = 1").fetchone()["count"])
@@ -1858,10 +1944,14 @@ class LeadStorage:
             "warm_leads": warm,
             "new_leads": new_leads,
             "contacted": contacted,
+            "flyer_sent": flyer_sent,
             "closed": closed,
             "vip_leads": vip,
             "reviewed": reviewed,
             "unreviewed": unreviewed,
+            "strong_leads": strong,
+            "review_leads": review,
+            "hidden_leads": hidden,
             "telegram_leads": telegram,
             "matched_leads": matches,
             "rejected": rejected,
@@ -2289,6 +2379,9 @@ class LeadStorage:
         result["intent_reasons_list"] = self.deserialize_keywords(result.get("intent_reasons"))
         result["urgency_reasons_list"] = self.deserialize_keywords(result.get("urgency_reasons"))
         result["heat_reasons_list"] = self.deserialize_keywords(result.get("heat_reasons_json"))
+        result["matched_rules_list"] = self.deserialize_keywords(result.get("matched_rules_json"))
+        result["weakness_reasons_list"] = self.deserialize_keywords(result.get("weakness_reasons_json"))
+        result["disqualification_risks_list"] = self.deserialize_keywords(result.get("disqualification_risks_json"))
         result["pet_friendly_requested"] = bool(result.get("pet_friendly_requested"))
         result["religious_signal"] = bool(result.get("religious_signal"))
         result["romantic_signal"] = bool(result.get("romantic_signal"))

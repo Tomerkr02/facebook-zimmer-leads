@@ -20,6 +20,12 @@
       <div><strong>עודכן:</strong> {{ lead.updated_at }}</div>
       <div><strong>ניקוד מילים:</strong> {{ lead.keyword_score }}</div>
       <div><strong>ניקוד כוונה:</strong> {{ lead.intent_score if lead.intent_score is not none else "-" }}</div>
+      <div><strong>ניקוד מיקום:</strong> {{ lead.location_score if lead.location_score is not none else "-" }}</div>
+      <div><strong>ניקוד פרטיות:</strong> {{ lead.privacy_score if lead.privacy_score is not none else "-" }}</div>
+      <div><strong>ניקוד זמן:</strong> {{ lead.timing_score if lead.timing_score is not none else "-" }}</div>
+      <div><strong>ניקוד תקציב:</strong> {{ lead.budget_score if lead.budget_score is not none else "-" }}</div>
+      <div><strong>ניקוד רלוונטיות:</strong> {{ lead.relevance_score if lead.relevance_score is not none else "-" }}</div>
+      <div><strong>החלטה סופית:</strong> {{ lead.decision_bucket or "-" }}</div>
       <div><strong>ניקוד חום:</strong> {{ lead.heat_score if lead.heat_score is not none else "-" }}</div>
       <div><strong>ניקוד סגירה:</strong> {{ lead.conversion_score if lead.conversion_score is not none else "-" }}</div>
       <div><strong>ניקוד וייב:</strong> {{ lead.vibe_score if lead.vibe_score is not none else "-" }}</div>
@@ -79,7 +85,7 @@
 
     <section class="content-block">
       <h3>למה המערכת חושבת שזה ליד טוב</h3>
-      <div class="text-box">{{ lead.ai_explanation_he or "-" }}</div>
+      <div class="text-box">{{ lead.decision_explanation_he or lead.ai_explanation_he or "-" }}</div>
     </section>
 
     <section class="content-block">
@@ -153,48 +159,6 @@
     {% endif %}
 
     <section class="content-block">
-      <div class="reply-head">
-        <h3>תגובה ראשונה מוצעת</h3>
-        <button
-          type="button"
-          class="copy-button"
-          onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
-        >
-          העתקה
-        </button>
-      </div>
-      <div class="text-box">{{ lead.suggested_first_reply_he or lead.suggested_reply_he or "-" }}</div>
-    </section>
-
-    <section class="content-block">
-      <div class="reply-head">
-        <h3>פולואפ מוצע</h3>
-        <button
-          type="button"
-          class="copy-button"
-          onclick='copyText({{ (lead.suggested_followup_he or "")|tojson }}, this)'
-        >
-          העתקה
-        </button>
-      </div>
-      <div class="text-box">{{ lead.suggested_followup_he or "-" }}</div>
-    </section>
-
-    <section class="content-block">
-      <div class="reply-head">
-        <h3>שאלת מחיר / תאריכים</h3>
-        <button
-          type="button"
-          class="copy-button"
-          onclick='copyText({{ (lead.suggested_price_question_he or "")|tojson }}, this)'
-        >
-          העתקה
-        </button>
-      </div>
-      <div class="text-box">{{ lead.suggested_price_question_he or "-" }}</div>
-    </section>
-
-    <section class="content-block">
       <h3>קישורים</h3>
       <div class="link-row">
         {% if lead.group_url %}
@@ -211,14 +175,13 @@
     <section class="panel content-block">
       <h3>Action Bar</h3>
       <div class="action-bar vertical">
-        <button
-          type="button"
-          class="ghost-button"
-          onclick='copyText({{ (lead.suggested_first_reply_he or lead.suggested_reply_he or "")|tojson }}, this)'
-        >📋 Copy reply</button>
         {% if lead.post_url %}
         <a class="button-link" href="{{ lead.post_url }}" target="_blank" rel="noopener">💬 Open Facebook post</a>
         {% endif %}
+        <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
+          <input type="hidden" name="status" value="flyer_sent">
+          <button type="submit">🖼️ Flyer sent</button>
+        </form>
         <form method="post" action="{{ url_for('lead_status_update', lead_id=lead.id) }}">
           <input type="hidden" name="status" value="contacted">
           <button type="submit">✅ Contacted</button>

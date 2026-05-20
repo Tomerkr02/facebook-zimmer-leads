@@ -25,6 +25,7 @@ URGENCIES = ["today", "tomorrow", "weekend", "shabbat", "date_specific", "flexib
 SORT_OPTIONS: dict[str, str] = {
     "priority": "Priority inbox",
     "newest": "החדשים ביותר",
+    "relevance_score": "רלוונטיות גבוהה",
     "heat_score": "Heat score גבוה",
     "fit_score": "ציון התאמה גבוה",
     "vip_first": "VIP first",
@@ -36,6 +37,7 @@ SORT_OPTIONS: dict[str, str] = {
 STATUS_LABELS = {
     "new": "חדש",
     "contacted": "נוצר קשר",
+    "flyer_sent": "פלייר נשלח",
     "waiting_reply": "ממתין לתגובה",
     "closed": "נסגר",
     "not_relevant": "לא רלוונטי",
@@ -94,13 +96,11 @@ FEEDBACK_LABELS = {
 }
 LEAD_TYPE_LABELS = {
     "guest_seeker": "מחפש אירוח",
+    "recommendation_request": "בקשת המלצה",
     "owner_advertiser": "פרסום בעל מקום",
-    "spam": "ספאם",
     "event_seeker": "מחפש אירוע",
-    "romantic_couple": "זוג רומנטי",
-    "religious_couple": "זוג דתי",
-    "family_small": "משפחה קטנה",
-    "budget_sensitive": "רגיש למחיר",
+    "irrelevant": "לא רלוונטי",
+    "unclear": "לא ברור",
 }
 
 SCAN_CONTROLLER: dict[str, Any] = {
@@ -314,6 +314,7 @@ def _filters_from_request() -> dict[str, str | int]:
         "requested_area": (request.args.get("requested_area") or "").strip(),
         "ai_category": (request.args.get("ai_category") or "").strip(),
         "lead_type": (request.args.get("lead_type") or "").strip(),
+        "decision_bucket": (request.args.get("decision_bucket") or "").strip(),
         "type": requested_type,
         "view": view,
         "created_date": created_date,
@@ -333,11 +334,19 @@ def _filters_from_request() -> dict[str, str | int]:
         "matched_only": "1" if request.args.get("matched_only") else "",
         "scan_run_id": request.args.get("scan_run_id", default=None, type=int),
         "search": (request.args.get("search") or "").strip(),
-        "sort": (request.args.get("sort") or "heat_score").strip(),
+        "sort": (request.args.get("sort") or "priority").strip(),
         "limit": limit,
     }
     if view == "vip":
         filters["vip_only"] = "1"
+    elif view == "strong":
+        filters["decision_bucket"] = "show"
+    elif view == "review":
+        filters["decision_bucket"] = "review"
+    elif view == "hidden":
+        filters["decision_bucket"] = "hidden"
+        filters["show_all"] = "1"
+        filters["include_rejected"] = "1"
     elif view == "reviewed":
         filters["feedback_state"] = "reviewed"
     elif view == "unreviewed":
@@ -382,6 +391,7 @@ def _lead_query_kwargs(
         "requested_area": filters.get("requested_area") or None,
         "ai_category": filters.get("ai_category") or None,
         "lead_type": filters.get("lead_type") or None,
+        "decision_bucket": filters.get("decision_bucket") or None,
         "religious_only": bool(filters.get("religious_only")),
         "romantic_only": bool(filters.get("romantic_only")),
         "family_only": bool(filters.get("family_only")),
@@ -425,7 +435,7 @@ def _dashboard_context() -> dict[str, object]:
         "pool_labels": POOL_LABELS,
         "feedback_labels": FEEDBACK_LABELS,
         "lead_type_labels": LEAD_TYPE_LABELS,
-        "lead_types": ["guest_seeker", "owner_advertiser", "spam", "event_seeker", "romantic_couple", "religious_couple", "family_small", "budget_sensitive"],
+        "lead_types": ["guest_seeker", "recommendation_request", "owner_advertiser", "irrelevant", "unclear"],
         "sort_options": SORT_OPTIONS,
         "latest_scan": latest_scan,
         "scan_running": _is_scan_running(),
@@ -502,8 +512,9 @@ def leads_page():
     filters = _filters_from_request()
     if filters["type"] == "owner_ad":
         filters["owner_ads_only"] = "1"
-    filters["show_all"] = "1"
-    query_kwargs = _lead_query_kwargs(filters, force_show_all=True)
+    if not filters["view"] and not filters["decision_bucket"] and not filters["show_all"] and not filters["scan_run_id"] and not filters["status"]:
+        filters["decision_bucket"] = "show"
+    query_kwargs = _lead_query_kwargs(filters, force_show_all=bool(filters.get("show_all")))
     total_leads_all = storage.count_leads()
     total_non_archived = storage.count_non_archived_leads()
     filtered_count = storage.count_filtered_leads(**query_kwargs)
@@ -512,7 +523,7 @@ def leads_page():
         total_leads_all,
         total_non_archived,
         filtered_count,
-        filters["sort"] or "newest",
+        filters["sort"] or "priority",
         filters["scan_run_id"],
         bool(filters["telegram_sent"]),
         filters["status"] or "-",
@@ -522,7 +533,7 @@ def leads_page():
     leads = _decorate_leads(
         storage.list_leads(
             limit=int(filters["limit"]),
-            sort_by=str(filters["sort"] or "newest"),
+            sort_by=str(filters["sort"] or "priority"),
             **query_kwargs,
         )
     )
@@ -735,12 +746,34 @@ def lead_status_update(lead_id: int):
             reviewer="tomer",
             feedback_reason=reason,
         )
+    elif status == "contacted":
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type="contacted",
+            reviewer="tomer",
+            feedback_reason="contacted",
+        )
+    elif status == "flyer_sent":
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type="flyer_sent",
+            reviewer="tomer",
+            feedback_reason="flyer_sent",
+        )
+        storage.update_lead_fields(lead_id, decision_bucket="show")
     elif status == "closed":
         learning_engine.record_review_feedback(
             lead_id=lead_id,
             feedback_type="closed_successfully",
             reviewer="tomer",
             feedback_reason="closed",
+        )
+    elif status == "archived":
+        learning_engine.record_review_feedback(
+            lead_id=lead_id,
+            feedback_type="archived",
+            reviewer="tomer",
+            feedback_reason="archived",
         )
     next_url = request.form.get("next", "").strip()
     if next_url:
@@ -784,21 +817,26 @@ def lead_feedback_update(lead_id: int):
 def review_feedback_update(lead_id: int):
     action = (request.form.get("action") or "").strip()
     action_map: dict[str, dict[str, Any]] = {
-        "good_lead": {"feedback_type": "good_lead"},
+        "good_lead": {"feedback_type": "good_lead", "fields": {"decision_bucket": "show"}},
+        "contacted": {"feedback_type": "contacted", "status": "contacted"},
+        "flyer_sent": {"feedback_type": "flyer_sent", "status": "flyer_sent"},
+        "archive": {"feedback_type": "archived", "status": "archived"},
         "perfect_match": {
             "feedback_type": "perfect_match",
             "fields": {
                 "vip_match": 1,
+                "decision_bucket": "show",
                 "short_reason_he": "סומן ידנית כ-PERFECT MATCH על ידי Tomer.",
             },
         },
-        "irrelevant": {"feedback_type": "irrelevant", "status": "not_relevant"},
+        "irrelevant": {"feedback_type": "irrelevant", "status": "not_relevant", "fields": {"decision_bucket": "hidden"}},
         "pets": {
             "feedback_type": "pets",
             "status": "not_relevant",
             "fields": {
                 "pet_request": 1,
                 "pet_friendly_requested": 1,
+                "decision_bucket": "hidden",
                 "reject_reason_he": "הבקשה כוללת חיות מחמד ולכן לא מתאימה ל-Royal Water Villa.",
             },
         },
@@ -807,6 +845,7 @@ def review_feedback_update(lead_id: int):
             "status": "not_relevant",
             "fields": {
                 "lead_type": "event_seeker",
+                "decision_bucket": "hidden",
                 "reject_reason_he": "נראה שמדובר בבקשת מסיבה או אירוע ולא באירוח שקט.",
             },
         },
@@ -815,11 +854,12 @@ def review_feedback_update(lead_id: int):
             "status": "not_relevant",
             "fields": {
                 "guest_type": "large_group",
+                "decision_bucket": "hidden",
                 "reject_reason_he": "הבקשה נראית גדולה מדי לפורמט האירוח של Royal Water Villa.",
             },
         },
-        "too_expensive": {"feedback_type": "too_expensive", "status": "not_relevant"},
-        "bad_location": {"feedback_type": "bad_location", "status": "not_relevant"},
+        "too_expensive": {"feedback_type": "too_expensive", "status": "not_relevant", "fields": {"decision_bucket": "hidden"}},
+        "bad_location": {"feedback_type": "bad_location", "status": "not_relevant", "fields": {"decision_bucket": "hidden"}},
         "owner_ad": {
             "feedback_type": "owner_ad",
             "status": "not_relevant",
